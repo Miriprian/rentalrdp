@@ -6,6 +6,8 @@
 <title>Dashboard — rentalrdp.com</title>
 <meta name="description" content="Dashboard penyewa rentalrdp.com — pesanan, RDP, akun."/>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/css/theme.css"/>
+<script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
 <style>
   body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
@@ -22,6 +24,11 @@
       <div class="text-[11px] text-slate-400">Dashboard Penyewa</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
+      <select id="themeSel" class="px-2 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
+        <option value="system">🖥️ System</option>
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+      </select>
       <a href="/" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Katalog</a>
       <a id="btnAdminLink" href="/admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>

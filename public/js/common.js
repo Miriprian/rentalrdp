@@ -2,6 +2,27 @@
 const $ = (s) => document.querySelector(s);
 const state = { me: null };
 
+// ---- tema flat: system / dark / light ----
+function applyTheme(mode) {
+  const resolved = mode === "dark" ? "dark" : mode === "light" ? "light" : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", resolved);
+}
+function themeInit() {
+  const saved = localStorage.getItem("theme") || "system";
+  applyTheme(saved);
+  const sel = $("#themeSel");
+  if (sel) {
+    sel.value = saved;
+    sel.addEventListener("change", () => {
+      localStorage.setItem("theme", sel.value);
+      applyTheme(sel.value);
+    });
+  }
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if ((localStorage.getItem("theme") || "system") === "system") applyTheme("system");
+  });
+}
+
 function toast(msg) {
   const t = $("#toast");
   if (!t) return alert(msg);
@@ -101,3 +122,4 @@ window.changePass = async function () {
   const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: $("#oldP").value, newPassword: $("#newP").value }) });
   toast(r.message || (r.ok ? "Berhasil" : "Gagal"));
 };
+themeInit();
