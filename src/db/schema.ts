@@ -62,6 +62,8 @@ export const pcs = pgTable("pcs", {
   city: text("city").notNull().default("Jakarta"),
   cpu: text("cpu").notNull().default(""),
   gpu: text("gpu").notNull().default(""),
+  motherboard: text("motherboard").notNull().default(""),
+  hwJson: text("hw_json").notNull().default("{}"),
   ramGb: integer("ram_gb").notNull().default(16),
   storageGb: integer("storage_gb").notNull().default(512),
   storageType: text("storage_type").notNull().default("NVMe SSD"),

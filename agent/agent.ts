@@ -49,25 +49,71 @@ async function sh(cmd: string): Promise<{ ok: boolean; out: string }> {
 // ─── Deteksi spek real PC ─────────────────────────────────────
 const WIN_SPEC_PS1 = `
 $ErrorActionPreference = 'SilentlyContinue'
-$o = [ordered]@{ cpu = ""; gpu = ""; ramGb = 0; storageGb = 0; os = ""; storageType = "SSD" }
-try { $o.cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name } catch {}
-try { $o.gpu = ((Get-CimInstance Win32_VideoController | Select-Object -First 1).Name) } catch {}
+$o = [ordered]@{ cpu = ""; gpu = ""; ramGb = 0; storageGb = 0; os = ""; storageType = "SSD"; motherboard = ""; ramType = ""; gpuVramGb = 0; cpuCores = 0; cpuThreads = 0; ramModules = @(); disks = @() }
+try {
+  $p = Get-CimInstance Win32_Processor | Select-Object -First 1
+  $o.cpu = $p.Name
+  $o.cpuCores = $p.NumberOfCores
+  $o.cpuThreads = $p.NumberOfLogicalProcessors
+  $o.cpuMaxGhz = if ($p.MaxClockSpeed) { [math]::Round($p.MaxClockSpeed / 1000, 1) } else { 0 }
+} catch {}
+try {
+  $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
+  $o.gpu = $gpu.Name
+  try {
+    $cl = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\0000'
+    $qi = Get-ItemProperty -Path $cl -ErrorAction Stop
+    if ($qi.'HardwareInformation.qwMemorySize') { $o.gpuVramGb = [math]::Round($qi.'HardwareInformation.qwMemorySize' / 1GB) }
+  } catch {}
+  if ($o.gpuVramGb -le 0 -and $gpu.AdapterRAM) { $o.gpuVramGb = [math]::Round($gpu.AdapterRAM / 1GB) }
+} catch {}
 try { $o.ramGb = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB) } catch {}
 try {
+  $mb = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
+  $o.motherboard = (($mb.Manufacturer + " " + $mb.Product).Trim())
+} catch {}
+try {
+  $memType = @{ 24 = "DDR3"; 26 = "DDR4"; 34 = "DDR5" }
+  Get-CimInstance Win32_PhysicalMemory | ForEach-Object {
+    $type = $memType[[int]$_.SMBIOSMemoryType]
+    if (-not $type) { $type = "" }
+    if ($type) { $o.ramType = $type }
+    $o.ramModules += [ordered]@{
+      slot = $_.DeviceLocator
+      manufacturer = $_.Manufacturer
+      partNumber = $_.PartNumber
+      capacityGb = [math]::Round($_.Capacity / 1GB)
+      speed = $_.ConfiguredClockSpeed
+      type = $type
+    }
+  }
+} catch {}
+try {
   $t = 0
-  Get-CimInstance Win32_DiskDrive | ForEach-Object { $t += $_.Size }
-  $o.storageGb = [math]::Round($t / 1GB)
+  $pds = Get-PhysicalDisk
+  if ($pds) {
+    $allSsd = $true
+    foreach ($pd in $pds) {
+      $sg = [math]::Round($pd.Size / 1GB)
+      $t += $sg
+      $o.disks += [ordered]@{
+        model = $pd.FriendlyName
+        capacityGb = $sg
+        mediaType = $pd.MediaType
+        busType = $pd.BusType
+      }
+      if ($pd.MediaType -eq "HDD") { $allSsd = $false }
+    }
+    $o.storageType = if ($allSsd) { "SSD" } else { "HDD" }
+  }
+  $o.storageGb = if ($t) { [math]::Round($t) } else { [math]::Round((Get-CimInstance Win32_DiskDrive | Measure-Object Size -Sum).Sum / 1GB) }
 } catch {}
 try { $o.os = ((Get-CimInstance Win32_OperatingSystem | Select-Object -First 1).Caption) } catch {}
-try {
-  $pd = Get-PhysicalDisk | Sort-Object DeviceId | Select-Object -First 1
-  if ($pd) { $o.storageType = if ($pd.MediaType -eq "HDD") { "HDD" } else { "SSD" } }
-} catch {}
-$o | ConvertTo-Json -Compress
+$o | ConvertTo-Json -Compress -Depth 5
 `;
 
 async function detectSpecs() {
-  const specs = { cpu: "", gpu: "", ramGb: 0, storageGb: 0, os: "", storageType: "SSD" };
+  const specs = { cpu: "", gpu: "", ramGb: 0, storageGb: 0, os: "", storageType: "SSD", motherboard: "", ramType: "", gpuVramGb: 0, cpuCores: 0, cpuThreads: 0, cpuMaxGhz: 0, ramModules: [] as unknown[], disks: [] as unknown[] };
   try {
     if (IS_WIN) {
       const { writeFileSync, unlinkSync } = await import("node:fs");
@@ -85,6 +131,14 @@ async function detectSpecs() {
         specs.storageGb = Math.round(Number(j.storageGb || 0));
         specs.os = String(j.os || "").trim();
         specs.storageType = String(j.storageType || "SSD").trim();
+        specs.motherboard = String(j.motherboard || "").trim();
+        specs.ramType = String(j.ramType || "").trim();
+        specs.gpuVramGb = Math.round(Number(j.gpuVramGb || 0));
+        specs.cpuCores = Math.round(Number(j.cpuCores || 0));
+        specs.cpuThreads = Math.round(Number(j.cpuThreads || 0));
+        specs.cpuMaxGhz = Math.round(Number(j.cpuMaxGhz || 0) * 10) / 10;
+        specs.ramModules = Array.isArray(j.ramModules) ? j.ramModules : [];
+        specs.disks = Array.isArray(j.disks) ? j.disks : [];
       }
     } else {
       const cpuR = await sh(`lscpu | grep -m1 "Model name" | sed 's/.*://'`);
@@ -92,11 +146,13 @@ async function detectSpecs() {
       const ramR = await sh(`awk '/MemTotal/{printf "%d", $2/1024/1024}' /proc/meminfo`);
       const diskR = await sh(`df -BG --total / | awk '/total/{print int($2)}'`);
       const osR = await sh(`. /etc/os-release && echo "$PRETTY_NAME"`);
+      const mbR = await sh(`cat /sys/class/dmi/id/board_vendor /sys/class/dmi/id/board_name 2>/dev/null | tr '\\n' ' '`);
       specs.cpu = cpuR.out.trim() || "";
       specs.gpu = gpuR.out.trim() || "";
       specs.ramGb = Math.round(Number(ramR.out.trim()) || 0);
       specs.storageGb = Math.round(Number(diskR.out.trim()) || 0);
       specs.os = osR.out.trim() || "";
+      specs.motherboard = mbR.out.trim();
     }
   } catch {}
   return specs;
@@ -105,6 +161,7 @@ async function detectSpecs() {
 async function createUser(username: string, password: string) {
   console.log(`[agent] create_user ${username} @ ${process.platform}`);
   if (IS_WIN) {
+    let r = await sh(`net user ${username} ${password} /add`);
     if (!r.ok && r.out.includes("sudah ada")) {
       await sh(`net user ${username} ${password}`);
       r = { ok: true, out: "password reset" };
@@ -133,7 +190,14 @@ async function deleteUser(username: string) {
 
 async function loop() {
   try {
-    const specs = { ...(await detectSpecs()), hostname: HOSTNAME, platform: process.platform };
+    const s = await detectSpecs();
+    const hwKeys = ["ramType", "gpuVramGb", "cpuCores", "cpuThreads", "cpuMaxGhz", "ramModules", "disks"] as const;
+    const hw: Record<string, unknown> = {};
+    for (const k of hwKeys) {
+      hw[k] = s[k];
+      delete s[k];
+    }
+    const specs = { ...s, hw, hostname: HOSTNAME, platform: process.platform };
     await fetch(`${API}/api/agent/heartbeat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-agent-token": TOKEN },

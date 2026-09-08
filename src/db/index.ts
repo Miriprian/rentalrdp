@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS pcs (
   city TEXT NOT NULL DEFAULT 'Jakarta',
   cpu TEXT NOT NULL DEFAULT '',
   gpu TEXT NOT NULL DEFAULT '',
+  motherboard TEXT NOT NULL DEFAULT '',
+  hw_json TEXT NOT NULL DEFAULT '{}',
   ram_gb INTEGER NOT NULL DEFAULT 16,
   storage_gb INTEGER NOT NULL DEFAULT 512,
   storage_type TEXT NOT NULL DEFAULT 'NVMe SSD',
@@ -186,6 +188,9 @@ CREATE INDEX IF NOT EXISTS idx_rentals_user ON rentals(user_id);
 CREATE INDEX IF NOT EXISTS idx_rentals_pc ON rentals(pc_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_pc_status ON agent_tasks(pc_id, status);
 CREATE INDEX IF NOT EXISTS idx_pcs_status ON pcs(status);
+-- Migrasi kolom detail hardware untuk DB yang sudah terlanjur dibuat
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS motherboard TEXT NOT NULL DEFAULT '';
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS hw_json TEXT NOT NULL DEFAULT '{}';
 `;
 
 export async function ensureSchema() {

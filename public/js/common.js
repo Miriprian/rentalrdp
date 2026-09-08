@@ -27,6 +27,25 @@ function statusBadge(s) {
 }
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
+// Detail hardware agent (kolom hw_json): disk list + RAM modules + VRAM + core/thread
+function hwDetailHtml(p) {
+  let hw = {};
+  try { hw = JSON.parse(p.hw_json || "{}"); } catch {}
+  const lines = [];
+  if (hw.ramModules && hw.ramModules.length) {
+    const mods = hw.ramModules.map((m) => `${m.capacityGb}GB ${hw.ramType || m.type || ""} ${m.speed || "?"}MHz ${esc(m.partNumber || m.manufacturer || "")}`.trim()).join(" + ");
+    lines.push(`💾 Detail RAM: ${mods}`);
+  }
+  if (hw.disks && hw.disks.length) {
+    const ds = hw.disks.map((d) => `${d.capacityGb}GB ${esc(d.model || "")}${d.busType ? ` (${esc(d.busType)})` : ""}`.trim()).join(" + ");
+    lines.push(`🗄️ Storage: ${ds}`);
+  }
+  if (hw.gpuVramGb) lines.push(`🎮 VRAM: ${hw.gpuVramGb}GB`);
+  if (hw.cpuCores) lines.push(`🧠 ${hw.cpuCores} core / ${hw.cpuThreads || hw.cpuCores} thread${hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : ""}`);
+  if (!lines.length) return "";
+  return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">📋 Spek detail</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
+}
+
 async function loadMe() {
   const r = await api("/api/auth/me");
   state.me = r.ok ? r.user : null;

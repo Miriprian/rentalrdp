@@ -32,6 +32,7 @@ export const agentRoutes = new Elysia()
     const stringMap: Record<string, unknown> = {
       cpu: b.cpu, gpu: b.gpu, os: b.os, storage_type: b.storageType,
       ip_public: b.ipPublic, location: b.location, name: b.name,
+      motherboard: b.motherboard,
     };
     for (const [col, val] of Object.entries(stringMap)) {
       if (typeof val === "string" && val.trim() && val.trim().length >= 2) {
@@ -46,6 +47,11 @@ export const agentRoutes = new Elysia()
     if (typeof b.storageGb === "number" && b.storageGb > 0) {
       params.push(Math.round(Number(b.storageGb)));
       sets.push(`storage_gb=$${params.length + 1}`);
+    }
+    // Detail hardware JSON: disk list, RAM modules, VRAM, dst.
+    if (b.hw && typeof b.hw === "object" && !Array.isArray(b.hw)) {
+      params.push(JSON.stringify(b.hw).slice(0, 8000));
+      sets.push(`hw_json=$${params.length + 1}`);
     }
     await q(`UPDATE pcs SET ${sets.join(", ")} WHERE id=$1`, [pc.id, ...params]);
     return {
