@@ -17,32 +17,36 @@ async function loadPublic() {
 
 function renderPcs() {
   const g = $("#pcGrid");
-  if (!landing.pcs.length) { g.innerHTML = `<div class="card rounded-xl p-6 text-sm text-slate-400">Belum ada unit.</div>`; return; }
+  if (!landing.pcs.length) { g.innerHTML = `<div class="col-12"><div class="card"><div class="card-body text-secondary">Belum ada unit.</div></div></div>`; return; }
   g.innerHTML = landing.pcs.map((p) => `
-    <div class="card rounded-2xl p-5 flex flex-col">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="mono text-xs text-slate-400">${esc(p.code)}</span>
-        <span class="ml-auto">${statusBadge(p.status)}</span>
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="mono small text-secondary">${esc(p.code)}</span>
+            <span class="ms-auto">${statusBadge(p.status)}</span>
+          </div>
+          <div class="fw-bold fs-5">${esc(p.name)}</div>
+          <div class="small text-secondary">📍 ${esc(p.location)} • ${esc(p.os)} • <span class="text-success fw-bold">BARE METAL</span></div>
+          ${p.motherboard ? `<div class="small text-secondary mt-1">🖥️ ${esc(p.motherboard)}</div>` : ""}
+          <div class="row g-1 mt-3 small text-secondary">
+            <div class="col-6">🧠 ${esc(p.cpu)}</div><div class="col-6">🎮 ${esc(p.gpu)}</div>
+            <div class="col-6">💾 ${p.ram_gb}GB RAM</div><div class="col-6">🗄️ ${p.storage_gb}GB ${esc(p.storage_type)}</div>
+          </div>
+          ${hwDetailHtml(p)}
+          <p class="small text-secondary mt-2 mb-2">${esc(p.description || "")}</p>
+          <div class="row g-2 mt-1 small">
+            <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/jam<br/><b class="text-success">${rupiah(p.price_hourly)}</b></div></div>
+            <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/hari<br/><b class="text-success">${rupiah(p.price_daily)}</b></div></div>
+            <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/minggu<br/><b class="text-success">${rupiah(p.price_weekly)}</b></div></div>
+            <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/bulan<br/><b class="text-success">${rupiah(p.price_monthly)}</b></div></div>
+          </div>
+          <button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
+            class="btn mt-4 w-100 fw-bold ${p.status === "available" ? "btn-success" : "btn-secondary disabled"}">
+            ${p.status === "available" ? "Sewa Sekarang →" : "Tidak Tersedia"}
+          </button>
+        </div>
       </div>
-      <div class="font-extrabold">${esc(p.name)}</div>
-      <div class="text-[11px] text-slate-400">📍 ${esc(p.location)} • ${esc(p.os)} • <span class="text-emerald-300 font-bold">BARE METAL</span></div>
-      ${p.motherboard ? `<div class="text-[11px] text-slate-400 mt-1">🖥️ ${esc(p.motherboard)}</div>` : ""}
-      <div class="grid grid-cols-2 gap-1 mt-3 text-xs text-slate-300">
-        <div>🧠 ${esc(p.cpu)}</div><div>🎮 ${esc(p.gpu)}</div>
-        <div>💾 ${p.ram_gb}GB RAM</div><div>🗄️ ${p.storage_gb}GB ${esc(p.storage_type)}</div>
-      </div>
-      ${hwDetailHtml(p)}
-      <p class="text-xs text-slate-400 mt-2">${esc(p.description || "")}</p>
-      <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
-        <div class="bg-slate-800 rounded-lg p-2">/jam<br/><b class="text-emerald-300">${rupiah(p.price_hourly)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">/hari<br/><b class="text-emerald-300">${rupiah(p.price_daily)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">/minggu<br/><b class="text-emerald-300">${rupiah(p.price_weekly)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">/bulan<br/><b class="text-emerald-300">${rupiah(p.price_monthly)}</b></div>
-      </div>
-      <button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
-        class="mt-4 py-3 rounded-xl font-bold ${p.status === "available" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-800 text-slate-500"}">
-        ${p.status === "available" ? "Sewa Sekarang →" : "Tidak Tersedia"}
-      </button>
     </div>`).join("");
 }
 
@@ -62,42 +66,50 @@ function updateTotal() {
   $("#orderTotal").textContent = "Estimasi: " + rupiah(priceFor(landing.orderPc, $("#orderPlan").value)) + " (diskon voucher dihitung server)";
 }
 
-function openAuth() { $("#authMsg").textContent = ""; $("#authModal").showModal(); }
+function openAuth() { $("#authMsg").textContent = ""; openModal("authModal"); }
 window.openOrder = function (id) {
   if (!state.me) { openAuth(); toast("Login dulu untuk sewa"); return; }
   landing.orderPc = landing.pcs.find((x) => x.id === id);
   if (!landing.orderPc) return;
-  $("#orderPC").innerHTML = `<b>${esc(landing.orderPc.name)}</b> <span class="mono text-xs">${esc(landing.orderPc.code)}</span><br/><span class="text-xs">${esc(landing.orderPc.cpu)} • ${landing.orderPc.ram_gb}GB • ${esc(landing.orderPc.gpu)}</span>`;
+  $("#orderPC").innerHTML = `<b>${esc(landing.orderPc.name)}</b> <span class="mono small text-secondary">${esc(landing.orderPc.code)}</span><br/><span class="small text-secondary">${esc(landing.orderPc.cpu)} • ${landing.orderPc.ram_gb}GB • ${esc(landing.orderPc.gpu)}</span>`;
   $("#orderMsg").textContent = "";
   updateTotal();
-  $("#orderModal").showModal();
+  openModal("orderModal");
 };
 
 function afterAuthGo() {
-  // admin -> /admin, user -> /app
   location.href = isAdminRole(state.me.role) ? "/admin" : "/app";
+}
+
+function setAuthTab(which) {
+  $("#loginForm").classList.toggle("hidden", which !== "login");
+  $("#regForm").classList.toggle("hidden", which !== "reg");
+  $("#tabLogin").classList.toggle("active", which === "login");
+  $("#tabLogin").classList.toggle("btn-primary", which === "login");
+  $("#tabReg").classList.toggle("active", which === "reg");
+  $("#tabReg").classList.toggle("btn-primary", which === "reg");
 }
 
 $("#btnLogin").onclick = openAuth;
 $("#btnLogout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.me = null; location.reload(); };
 $("#btnRefresh").onclick = loadPublic;
-$("#tabLogin").onclick = () => { $("#loginForm").classList.remove("hidden"); $("#regForm").classList.add("hidden"); $("#tabLogin").className = "py-2 rounded-lg bg-emerald-600 font-bold"; $("#tabReg").className = "py-2 rounded-lg bg-slate-800"; };
-$("#tabReg").onclick = () => { $("#regForm").classList.remove("hidden"); $("#loginForm").classList.add("hidden"); $("#tabReg").className = "py-2 rounded-lg bg-emerald-600 font-bold"; $("#tabLogin").className = "py-2 rounded-lg bg-slate-800"; };
+$("#tabLogin").onclick = () => setAuthTab("login");
+$("#tabReg").onclick = () => setAuthTab("reg");
 $("#doLogin").onclick = async () => {
   const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: $("#liUser").value.trim(), password: $("#liPass").value }) });
   $("#authMsg").textContent = r.message || "";
-  if (r.ok) { await loadMe(); $("#authModal").close(); toast("Selamat datang, " + state.me.username); afterAuthGo(); }
+  if (r.ok) { await loadMe(); closeModal("authModal"); toast("Selamat datang, " + state.me.username); afterAuthGo(); }
 };
 $("#doReg").onclick = async () => {
   const r = await api("/api/auth/register", { method: "POST", body: JSON.stringify({ username: $("#rgUser").value.trim(), email: $("#rgEmail").value.trim(), fullName: $("#rgName").value, waNumber: $("#rgWA").value, password: $("#rgPass").value }) });
   $("#authMsg").textContent = r.message || "";
-  if (r.ok) { await loadMe(); $("#authModal").close(); toast("Akun dibuat. Selamat datang!"); location.href = "/app"; }
+  if (r.ok) { await loadMe(); closeModal("authModal"); toast("Akun dibuat. Selamat datang!"); location.href = "/app"; }
 };
 $("#orderPlan").onchange = updateTotal;
 $("#doOrder").onclick = async () => {
   const r = await api("/api/orders", { method: "POST", body: JSON.stringify({ pcId: landing.orderPc.id, planCode: $("#orderPlan").value, voucherCode: $("#orderVoucher").value.trim(), paymentMethod: $("#orderPay").value, note: $("#orderNote").value }) });
   $("#orderMsg").textContent = r.message || "";
-  if (r.ok) { $("#orderModal").close(); toast("Order dibuat: " + r.code); location.href = "/app"; }
+  if (r.ok) { closeModal("orderModal"); toast("Order dibuat: " + r.code); location.href = "/app"; }
 };
 
 (async () => {
