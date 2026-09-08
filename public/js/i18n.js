@@ -444,7 +444,7 @@ function applyI18n() {
 function langInit() {
   const saved = localStorage.getItem("lang") || null;
   langState.lang = resolveLang(saved);
-  const sel = $("#langSel");
+  const sel = document.getElementById("langSel");
   if (sel) {
     sel.value = langState.lang;
     sel.addEventListener("change", () => {

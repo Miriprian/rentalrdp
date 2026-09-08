@@ -122,4 +122,5 @@ window.changePass = async function () {
   const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: $("#oldP").value, newPassword: $("#newP").value }) });
   toast(r.message || (r.ok ? "Berhasil" : "Gagal"));
 };
+langInit();
 themeInit();
