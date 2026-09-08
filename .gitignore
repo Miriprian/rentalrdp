@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build / dist
+dist/
+out/
+
+# Database (PGlite local) — jangan ke GitHub
+data/*
+!data/.gitkeep
+
+# Backups
+backups/
+
+# Secrets & env — PENTING: jangan pernah commit .env
+.env
+.env.local
+.env.*.local
+
+# Agent binary Windows (dibuild sendiri, tidak ikut git)
+agent/*.exe
+agent/config.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Drizzle
+drizzle/
+
+# Editor
+.vscode/
+.idea/

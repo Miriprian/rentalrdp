@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    container_name: rentalrdp-app
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://rentalrdp:${POSTGRES_PASSWORD:-changeme}@db:5432/rentalrdp
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: rentalrdp-db
+    environment:
+      POSTGRES_USER: rentalrdp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: rentalrdp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rentalrdp -d rentalrdp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

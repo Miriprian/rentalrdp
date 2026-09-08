@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>Admin Panel — rentalrdp.com</title>
+<meta name="description" content="Panel admin rentalrdp.com — verifikasi order, kelola PC bare metal, rental, user."/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>"/>
+<style>
+  body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  .card{background:#0f172a;border:1px solid #1e293b}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+<header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-amber-700/40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+    <a href="/" class="text-2xl" title="Beranda">🛠️</a>
+    <div>
+      <div class="font-extrabold text-lg leading-none">Admin Panel <span class="text-amber-300 text-xs font-bold border border-amber-500/40 rounded-full px-2 py-0.5">/admin</span></div>
+      <div class="text-[11px] text-slate-400">rentalrdp.com — khusus admin & superadmin</div>
+    </div>
+    <nav class="ml-auto flex items-center gap-2 text-sm">
+      <a href="/" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Beranda</a>
+      <a href="/app" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard User</a>
+      <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
+      <button id="btnLogout" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8" id="dashWrap">
+  <h1 class="text-2xl font-extrabold mb-1">Admin Panel</h1>
+  <div id="dashRole" class="text-xs text-slate-400 mb-4"></div>
+  <div class="flex flex-wrap gap-2 mb-4 text-sm" id="dashTabs"></div>
+  <div id="dashBody"></div>
+</main>
+
+<footer class="border-t border-slate-800 mt-10">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap gap-2">
+    <span>© 2026 rentalrdp.com — Admin Panel.</span>
+    <span class="ml-auto"><a class="underline" href="/">Beranda</a> • <a class="underline" href="/app">Dashboard User</a> • <a class="underline" href="/api/health">API</a></span>
+  </div>
+</footer>
+
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
+<script src="/js/common.js?v=3"></script>
+<script src="/js/admin.js?v=3"></script>
+</body>
+</html>
