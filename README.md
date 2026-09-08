@@ -49,7 +49,7 @@ Sesudahnya server jalan di `http://IP:3000` (login `obake / obake`, ganti passwo
 
 Untuk produksi sungguhan dengan nama domain + HTTPS, lihat **Bagian 7 TUTORIAL_LINUX.md** (Caddy auto-HTTPS, set `COOKIE_SECURE=true`).
 
-> **Setiap ada update kode:** pakai Git/GitHub (buat di Windows/Linux → push → di VPS `sudo ./update.sh`). Panduan pemula lengkap: **`GIT_LINUX.md`**.
+> **Setiap ada update kode:** pakai Git/GitHub (buat di Windows/Linux → push → di VPS `sudo ./update.sh`). Panduan pemula lengkap: **`GIT_LINUX.md`**. Mau sepenuhnya otomatis (build .exe + deploy VPS)? **`LEVEL2_GITHUB_ACTIONS.md`**.
 
 ## Alur sewa (bare metal)
 

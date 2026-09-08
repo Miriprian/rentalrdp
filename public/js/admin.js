@@ -148,8 +148,9 @@ window.showAgentSetup = function (code, token) {
       <div class="grid md:grid-cols-2 gap-4">
         <div class="space-y-2 text-xs text-slate-300">
           <div class="font-bold text-slate-200">1. Download agent:</div>
-          <a href="/api/download/agent" download="rentalrdp-agent.exe" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">⬇ Download rentalrdp-agent.exe</a>
-          <div class="text-slate-400">Copy ke PC yang mau disewakan (USB / network share).</div>
+          <a href="https://github.com/Miriprian/rentalrdp/releases/latest/download/rentalrdp-agent.exe" download="rentalrdp-agent.exe" target="_blank" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">⬇ Download rentalrdp-agent.exe</a>
+          <div class="text-slate-400">Di-build otomatis oleh GitHub. Copy ke PC yang mau disewakan (USB / network share).</div>
+          <a href="/api/download/agent" class="text-slate-500 underline">atau download dari server ini jika pernah build di sini</a>
           <div class="font-bold text-slate-200 pt-2">2. Di PC fisik, double-click file .exe</div>
           <div>Wizard akan menanyakan Server URL → <b class="text-emerald-300">${esc(server)}</b></div>
         </div>

@@ -1,0 +1,41 @@
+name: 🔨 Build agent .exe (Windows)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Compile agent -> .exe Windows
+        run: bun build --compile agent/agent-standalone.ts --outfile agent/rentalrdp-agent.exe
+
+      - name: Simpan .exe sebagai artifact (backup 90 hari)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rentalrdp-agent-windows-${{ github.run_number }}
+          path: agent/rentalrdp-agent.exe
+
+      - name: Publikasi ke halaman Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: agent/rentalrdp-agent.exe
+          tag_name: agent-v${{ github.run_number }}
+          name: Agent Windows v${{ github.run_number }}
+          body: |
+            Agent terbaru untuk PC RDP.
+
+            Cara ambil: di bagian **Assets**, klik **rentalrdp-agent.exe** (tab "Show all" kalau tidak terlihat).
+          fail_on_unmatched_files: false
