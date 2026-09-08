@@ -25,11 +25,6 @@
       <div class="text-[11px] text-slate-400">rentalrdp.com — khusus admin & superadmin</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <select id="themeSel" class="px-2 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
-        <option value="system">🖥️ System</option>
-        <option value="light">☀️ Light</option>
-        <option value="dark">🌙 Dark</option>
-      </select>
       <a href="/" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Beranda</a>
       <a href="/app" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard User</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
@@ -46,9 +41,14 @@
 </main>
 
 <footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap gap-2">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
     <span>© 2026 rentalrdp.com — Admin Panel.</span>
     <span class="ml-auto"><a class="underline" href="/">Beranda</a> • <a class="underline" href="/app">Dashboard User</a> • <a class="underline" href="/api/health">API</a></span>
+    <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
+      <option value="system">🖥️ System</option>
+      <option value="light">☀️ Light</option>
+      <option value="dark">🌙 Dark</option>
+    </select>
   </div>
 </footer>
 

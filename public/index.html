@@ -28,11 +28,6 @@
       <div class="text-[11px] text-slate-400">Bare Metal • Fisik Beneran • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <select id="themeSel" class="px-2 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
-        <option value="system">🖥️ System</option>
-        <option value="light">☀️ Light</option>
-        <option value="dark">🌙 Dark</option>
-      </select>
       <a href="#katalog" class="px-3 py-2 hover:text-emerald-300">Katalog</a>
       <a href="#cara" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">Cara Sewa</a>
       <a href="#faq" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">FAQ</a>
@@ -105,9 +100,14 @@
 <!-- DASHBOARD PINDAH KE URL SENDIRI: penyewa -> /app • admin -> /admin -->
 
 <footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap gap-2">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
     <span>© 2026 rentalrdp.com — Bare metal rental.</span>
     <span class="ml-auto"><a class="underline" href="/app">Dashboard</a> • <a class="underline" href="/admin">Admin</a> • API: <a class="underline" href="/api/health">/api/health</a></span>
+    <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
+      <option value="system">🖥️ System</option>
+      <option value="light">☀️ Light</option>
+      <option value="dark">🌙 Dark</option>
+    </select>
   </div>
 </footer>
 
