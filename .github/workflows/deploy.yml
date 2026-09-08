@@ -12,7 +12,9 @@ jobs:
       VPS_HOST: ${{ secrets.VPS_HOST }}
     steps:
       - name: Info (tanpa menampilkan isi rahasia)
-        run: echo "Mode deploy: $(if [ -n "$VPS_HOST" ]; then echo 'AKTIF (VPS_HOST terisi)'; else echo 'NONAKTIF (VPS_HOST belum diisi — pakai ./update.sh manual di VPS)'; fi)"
+        run: |
+          if [ -n "$VPS_HOST" ]; then MODE="AKTIF (VPS_HOST terisi)"; else MODE="NONAKTIF (VPS_HOST belum diisi — pakai ./update.sh manual di VPS)"; fi
+          echo "Mode deploy: $MODE"
 
       - name: 🚀 SSH ke VPS + update otomatis
         if: env.VPS_HOST != ''
