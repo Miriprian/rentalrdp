@@ -25,6 +25,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           script: |
-            cd /opt/rentalrdp.com || { echo "Folder belum ada (jalankan install.sh dulu)"; exit 1; }
+            cd /opt/rentalrdp || { echo "Folder belum ada (jalankan install-lxc.sh dulu)"; exit 1; }
             git pull --ff-only || exit 1
             bash ./update.sh || exit 1
