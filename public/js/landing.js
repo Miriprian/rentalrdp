@@ -1,4 +1,4 @@
-/* rentalrdp.com — landing (/) : katalog + auth modal + order modal */
+/* rentalrdp.com — landing pages (/, /katalog, /cara, /faq) : auth modal + katalog + order */
 const landing = { pcs: [], plans: [], settings: {}, orderPc: null };
 
 async function loadPublic() {
@@ -6,19 +6,37 @@ async function loadPublic() {
   landing.pcs = pcs.data || [];
   landing.plans = plans.data || [];
   landing.settings = settings.data || {};
-  $("#statUnits").textContent = landing.pcs.length || "—";
-  $("#noticeBox").textContent = landing.settings.notice || "";
+
+  const stat = $("#statUnits");
+  if (stat) stat.textContent = landing.pcs.length || "—";
+
+  const nb = $("#noticeBox");
+  if (nb) nb.textContent = landing.settings.notice || "";
+
   const wa = (landing.settings.wa_admin || "").replace(/\D/g, "");
-  if (wa) $("#heroWA").href = `https://wa.me/${wa}?text=${encodeURIComponent("Halo rentalrdp.com, saya mau tanya sewa PC bare metal")}`;
-  renderPcs();
-  renderPlanOptions();
-  $("#payInfo").innerHTML = `<b>Bayar ke:</b><br/>QRIS: ${esc(landing.settings.qris_text || "-")}<br/>${esc(landing.settings.payment_bca || "")}`;
+  const hw = $("#heroWA");
+  if (hw && wa) hw.href = `https://wa.me/${wa}?text=${encodeURIComponent("Halo rentalrdp.com, saya mau tanya sewa PC bare metal")}`;
+
+  const grid = $("#pcGrid");
+  if (grid) {
+    // home (/): preview 3 unit terbaru; /katalog: semua unit
+    const isCatalog = location.pathname.startsWith("/katalog");
+    renderPcs(isCatalog ? landing.pcs : landing.pcs.slice(0, 3));
+  }
+
+  const plan = $("#orderPlan");
+  if (plan) {
+    renderPlanOptions();
+    const pi = $("#payInfo");
+    if (pi) pi.innerHTML = `<b>Bayar ke:</b><br/>QRIS: ${esc(landing.settings.qris_text || "-")}<br/>${esc(landing.settings.payment_bca || "")}`;
+  }
 }
 
-function renderPcs() {
+function renderPcs(list) {
   const g = $("#pcGrid");
-  if (!landing.pcs.length) { g.innerHTML = `<div class="col-12"><div class="card"><div class="card-body text-secondary">Belum ada unit.</div></div></div>`; return; }
-  g.innerHTML = landing.pcs.map((p) => `
+  const isCatalog = location.pathname.startsWith("/katalog");
+  if (!list.length) { g.innerHTML = `<div class="col-12"><div class="card"><div class="card-body text-secondary">Belum ada unit.</div></div></div>`; return; }
+  g.innerHTML = list.map((p) => `
     <div class="col-md-6 col-lg-4">
       <div class="card h-100">
         <div class="card-body d-flex flex-column">
@@ -41,10 +59,11 @@ function renderPcs() {
             <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/minggu<br/><b class="text-success">${rupiah(p.price_weekly)}</b></div></div>
             <div class="col-6"><div class="bg-soft rounded-3 p-2 border">/bulan<br/><b class="text-success">${rupiah(p.price_monthly)}</b></div></div>
           </div>
-          <button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
-            class="btn mt-4 w-100 fw-bold ${p.status === "available" ? "btn-success" : "btn-secondary disabled"}">
-            ${p.status === "available" ? "Sewa Sekarang →" : "Tidak Tersedia"}
-          </button>
+          ${isCatalog
+            ? `<button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
+                class="btn mt-4 w-100 fw-bold ${p.status === "available" ? "btn-success" : "btn-secondary disabled"}">
+                ${p.status === "available" ? "Sewa Sekarang →" : "Tidak Tersedia"}</button>`
+            : `<a href="/katalog" class="btn btn-outline-success mt-4 w-100 fw-bold">Lihat Detail & Sewa →</a>`}
         </div>
       </div>
     </div>`).join("");
@@ -89,38 +108,54 @@ function setAuthTab(which) {
   $("#tabReg").classList.toggle("active", which === "reg");
   $("#tabReg").classList.toggle("btn-primary", which === "reg");
 }
-
-$("#btnLogin").onclick = openAuth;
-$("#btnLogout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.me = null; location.reload(); };
-$("#btnRefresh").onclick = loadPublic;
-$("#tabLogin").onclick = () => setAuthTab("login");
-$("#tabReg").onclick = () => setAuthTab("reg");
-$("#doLogin").onclick = async () => {
-  const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: $("#liUser").value.trim(), password: $("#liPass").value }) });
-  $("#authMsg").textContent = r.message || "";
-  if (r.ok) { await loadMe(); closeModal("authModal"); toast("Selamat datang, " + state.me.username); afterAuthGo(); }
-};
-$("#doReg").onclick = async () => {
-  const r = await api("/api/auth/register", { method: "POST", body: JSON.stringify({ username: $("#rgUser").value.trim(), email: $("#rgEmail").value.trim(), fullName: $("#rgName").value, waNumber: $("#rgWA").value, password: $("#rgPass").value }) });
-  $("#authMsg").textContent = r.message || "";
-  if (r.ok) { await loadMe(); closeModal("authModal"); toast("Akun dibuat. Selamat datang!"); location.href = "/app"; }
-};
-$("#orderPlan").onchange = updateTotal;
-$("#doOrder").onclick = async () => {
-  const r = await api("/api/orders", { method: "POST", body: JSON.stringify({ pcId: landing.orderPc.id, planCode: $("#orderPlan").value, voucherCode: $("#orderVoucher").value.trim(), paymentMethod: $("#orderPay").value, note: $("#orderNote").value }) });
-  $("#orderMsg").textContent = r.message || "";
-  if (r.ok) { closeModal("orderModal"); toast("Order dibuat: " + r.code); location.href = "/app"; }
-};
+function bindAuth(showAuthMsg) {
+  $("#btnLogin").onclick = () => { if (showAuthMsg) $("#authMsg").textContent = ""; openModal("authModal"); };
+  $("#btnLogout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.me = null; location.reload(); };
+  if (showAuthMsg) {
+    $("#tabLogin").onclick = () => setAuthTab("login");
+    $("#tabReg").onclick = () => setAuthTab("reg");
+    $("#doLogin").onclick = async () => {
+      const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: $("#liUser").value.trim(), password: $("#liPass").value }) });
+      $("#authMsg").textContent = r.message || "";
+      if (r.ok) { await loadMe(); closeModal("authModal"); toast("Selamat datang, " + state.me.username); afterAuthGo(); }
+    };
+    $("#doReg").onclick = async () => {
+      const r = await api("/api/auth/register", { method: "POST", body: JSON.stringify({ username: $("#rgUser").value.trim(), email: $("#rgEmail").value.trim(), fullName: $("#rgName").value, waNumber: $("#rgWA").value, password: $("#rgPass").value }) });
+      $("#authMsg").textContent = r.message || "";
+      if (r.ok) { await loadMe(); closeModal("authModal"); toast("Akun dibuat. Selamat datang!"); location.href = "/app"; }
+    };
+  }
+}
+function bindOrder() {
+  $("#orderPlan").onchange = updateTotal;
+  $("#doOrder").onclick = async () => {
+    const r = await api("/api/orders", { method: "POST", body: JSON.stringify({ pcId: landing.orderPc.id, planCode: $("#orderPlan").value, voucherCode: $("#orderVoucher").value.trim(), paymentMethod: $("#orderPay").value, note: $("#orderNote").value }) });
+    $("#orderMsg").textContent = r.message || "";
+    if (r.ok) { closeModal("orderModal"); toast("Order dibuat: " + r.code); location.href = "/app"; }
+  };
+}
 
 (async () => {
-  await loadPublic();
+  const refresh = $("#btnRefresh");
+  if (refresh) refresh.onclick = loadPublic;
+
+  // home & katalog butuh data publik; cara & faq cukup perbaiki navbar saja
+  if ($("#pcGrid")) await loadPublic();
+
   await loadMe();
+  bindAuth(!!$("#authMsg"));
+  if ($("#orderModal")) bindOrder();
+
   const logged = !!state.me;
   $("#btnLogin").classList.toggle("hidden", logged);
   $("#btnLogout").classList.toggle("hidden", !logged);
-  $("#navUser").textContent = logged ? `${state.me.username} (${state.me.role})` : "";
+  const nu = $("#navUser");
+  if (nu) nu.textContent = logged ? `${state.me.username} (${state.me.role})` : "";
   const bd = $("#btnDash");
   if (bd) { bd.classList.toggle("hidden", !logged); bd.href = isAdminRole(state.me?.role) ? "/admin" : "/app"; }
   const ba = $("#btnAdminNav");
   if (ba) ba.classList.toggle("hidden", !(logged && isAdminRole(state.me.role)));
 })();
+
+// expose untuk inline handler (katalog)
+window.renderLandingNav = null;
