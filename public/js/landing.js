@@ -109,7 +109,14 @@ function setAuthTab(which) {
   $("#tabReg").classList.toggle("btn-primary", which === "reg");
 }
 function bindAuth(showAuthMsg) {
-  $("#btnLogin").onclick = () => { if (showAuthMsg) $("#authMsg").textContent = ""; openModal("authModal"); };
+  const loginBtn = $("#btnLogin");
+  if (loginBtn && !loginBtn.hasAttribute("data-bs-toggle")) {
+    loginBtn.onclick = () => { if (showAuthMsg) $("#authMsg").textContent = ""; openModal("authModal"); };
+  } else {
+    // tombol Masuk pakai data-bs-toggle="modal" native (tahan dari gagalnya JS);
+    // onclick hanya di-reset supaya tidak buka modal dua kali
+    if (loginBtn) loginBtn.onclick = () => { if (showAuthMsg) $("#authMsg").textContent = ""; };
+  }
   $("#btnLogout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.me = null; location.reload(); };
   if (showAuthMsg) {
     $("#tabLogin").onclick = () => setAuthTab("login");
@@ -136,16 +143,19 @@ function bindOrder() {
 }
 
 (async () => {
+  // 1) Bind SEMUA interaksi dulu (sinkron) — tombol wajib hidup meski API error
+  bindAuth(!!$("#authMsg"));
   const refresh = $("#btnRefresh");
   if (refresh) refresh.onclick = loadPublic;
-
-  // home & katalog butuh data publik; cara & faq cukup perbaiki navbar saja
-  if ($("#pcGrid")) await loadPublic();
-
-  await loadMe();
-  bindAuth(!!$("#authMsg"));
   if ($("#orderModal")) bindOrder();
 
+  // 2) Muat data publik (jangan sampai error mematikan tombol)
+  try {
+    if ($("#pcGrid")) await loadPublic();
+  } catch (e) { console.error("loadPublic:", e); }
+
+  // 3) Status login / navbar
+  try { await loadMe(); } catch (e) { console.error("loadMe:", e); }
   const logged = !!state.me;
   $("#btnLogin").classList.toggle("hidden", logged);
   $("#btnLogout").classList.toggle("hidden", !logged);
@@ -154,7 +164,7 @@ function bindOrder() {
   const bd = $("#btnDash");
   if (bd) { bd.classList.toggle("hidden", !logged); bd.href = isAdminRole(state.me?.role) ? "/admin" : "/app"; }
   const ba = $("#btnAdminNav");
-  if (ba) ba.classList.toggle("hidden", !(logged && isAdminRole(state.me.role)));
+  if (ba) ba.classList.toggle("hidden", !(logged && isAdminRole(state.me?.role)));
 })();
 
 // expose untuk inline handler (katalog)

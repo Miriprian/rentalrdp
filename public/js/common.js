@@ -1,8 +1,33 @@
 /* rentalrdp.com — helper bersama (Tabler / Bootstrap 5, no build) */
 const $ = (s) => document.querySelector(s);
 const state = { me: null };
-function openModal(id) { const el = document.getElementById(id); if (el) new bootstrap.Modal(el).show(); }
-function closeModal(id) { const el = document.getElementById(id); if (el) { const m = bootstrap.Modal.getInstance(el); if (m) m.hide(); } }
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (window.bootstrap?.Modal) { new bootstrap.Modal(el).show(); return; }
+  el.classList.add("show");
+  el.style.display = "block";
+  document.body.classList.add("modal-open");
+  if (!document.querySelector(".modal-backdrop")) {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop fade show";
+    document.body.appendChild(bd);
+  }
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (window.bootstrap?.Modal) {
+    const m = bootstrap.Modal.getInstance(el);
+    if (m) { m.hide(); return; }
+    el.classList.remove("show");
+  }
+  el.classList.remove("show");
+  el.style.display = "";
+  const bd = document.querySelector(".modal-backdrop");
+  if (bd) bd.remove();
+  document.body.classList.remove("modal-open");
+}
 
 function toast(msg) {
   const t = $("#toast");
