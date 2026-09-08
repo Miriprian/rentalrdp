@@ -19,32 +19,49 @@
 
 ---
 
-## Bagian 1 — Upload File ke VPS
+## Bagian 1 — Ambil Kode ke VPS (tanpa WinSCP, via GitHub)
 
-### Pilih salah satu cara upload:
+> Kode kamu sudah ada di GitHub (repo private): **`https://github.com/Miriprian/rentalrdp`**.
+> Cukup **clone** sekali, selanjutnya update cuma `git pull`.
 
-**Cara 1 (paling mudah — pakai WinSCP/FileZilla):**
-1. Download & buka **WinSCP** (Windows) atau **FileZilla** (Windows/Mac/Linux).
-2. Login SFTP ke VPS kamu (IP, user, password).
-3. Upload **folder `rentalrdp.com`** ke `/opt/` (bikin dulu folder `opt` di root).
-
-   Hasilnya: `/opt/rentalrdp.com/…`
-
-**Cara 2 (pakai terminal — git/rsync jika udah ada):**
+**1. Login ke VPS** (SSH, mis. dari terminal Windows/Linux):
 ```bash
-# di mesin mau upload, mis. dari laptop:
-scp -r rentalrdp.com root@IP_SERVER:/opt/
+ssh root@IP_SERVER
 ```
 
-> **Yang TIDAK perlu diupload:** folder `node_modules/`, `data/`, `.env`, dan file `*.exe` di dalam `agent/`. Kalau sudah keupload, tidak masalah — tapi lebih kecil kalau dihapus dulu. Di server, jalankan `rm -rf node_modules data backups agent/*.exe`.
+**2. Install Git + GitHub CLI (sekali saja):**
+```bash
+sudo apt update && sudo apt install -y git gh
+```
+
+**3. Login GitHub di VPS (sekali saja — pakai kode di browser, sama seperti di Windows):**
+```bash
+gh auth login
+```
+- Pilih **GitHub.com** → **HTTPS** → **Login with a web browser**.
+- Salin kode yang muncul → buka `https://github.com/login/device` di browser → masukkan kode → Authorize.
+
+**4. Clone kode ke VPS:**
+```bash
+sudo mkdir -p /opt
+cd /opt
+gh repo clone Miriprian/rentalrdp
+cd rentalrdp
+```
+
+Selesai — kode ada di **`/opt/rentalrdp`**. (Selanjutnya update = `git pull`, tidak perlu copy file.)
+
+> **Kalau tidak mau ribet auth** (tidak disarankan, tapi boleh): download ZIP dari
+> https://github.com/Miriprian/rentalrdp → Code → Download ZIP → upload & ekstrak.
+> Tapi nanti update harus manual lagi. Pakai cara clone di atas lebih enak.
 
 ---
 
 ## Bagian 2 — Install Sekali Perintah
 
 ```bash
-# masuk ke folder project
-cd /opt/rentalrdp.com
+# masuk ke folder project (hasil clone)
+cd /opt/rentalrdp
 
 # buat boleh dijalankan & JALANKAN (butuh root/sudo)
 chmod +x install.sh
@@ -105,7 +122,7 @@ Server kamu sekarang bisa diakses dari internet pada `IP:3000`.
 ## Bagian 6 — Perintah Sehari-hari
 
 ```bash
-cd /opt/rentalrdp.com
+cd /opt/rentalrdp
 sudo ./manage.sh        # menu: status, log, restart, stop/start, backup
 docker compose logs -f  # lihat log live
 docker compose restart  # restart aplikasi
