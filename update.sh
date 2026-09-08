@@ -1,7 +1,6 @@
 #!/bin/bash
 # rentalrdp.com — UPDATE OTOMATIS dari GitHub (Level 1)
-# Jalanin di VPS tiap ada versi baru. Diupdate dari repository GitHub:
-#   git pull (ambil perubahan) -> build ulang Docker -> migrate -> restart
+# Dual-mode: mendeteksi otomatis apakah app diinstall pakai Docker atau langsung (LXC/Bun).
 # Cara: sudo ./update.sh
 set -e
 
@@ -18,50 +17,70 @@ echo "======================================"
 echo "  rentalrdp.com — UPDATE dari GitHub"
 echo "======================================"
 
-# ─── 1. SIMPAN .env SEBELUM PULL (jangan ketimpa) ──
+# ─── DETEKSI MODE INSTALL ──────────────────────────
+IS_DOCKER=0
+if [ -f .env ] && grep -q "DATABASE_URL=postgres://.*@db:" .env 2>/dev/null; then
+  IS_DOCKER=1
+elif command -v docker >/dev/null 2>&1 && docker compose ps >/dev/null 2>&1; then
+  IS_DOCKER=1
+fi
+[ "$IS_DOCKER" = "1" ] && info "Mode: Docker" || info "Mode: langsung (Bun/systemd — tanpa Docker)"
+
+# ─── 1. SIMPAN .env SEBELUM PULL ───────────────────
 if [ -f .env ]; then
   cp .env .env.bak
   info "Backup .env -> .env.bak"
 fi
 
-# ─── 2. PULL perubahan dari GitHub ────────────────
+# ─── 2. PULL PERUBAHAN dari GitHub ─────────────────
 if [ -d .git ]; then
   info "Menarik perubahan terbaru..."
   git pull --ff-only
 else
-  warn "Belum ada .git di folder ini. Clone dulu dari repo GitHub:"
-  echo "    git clone <URL_REPO> /opt/rentalrdp.com"
-  echo "  (lihat GIT_LINUX.md untuk panduan pertama kali)"
+  warn "Belum ada .git di folder ini. Clone dulu dari GitHub:"
+  echo "    gh repo clone Miriprian/rentalrdp /opt/rentalrdp"
+  echo "  (lihat TUTORIAL_LINUX.md untuk panduan pertama kali)"
   exit 1
 fi
 
-# ─── 3. PULIHKAN .env (file rahasia tidak ikut git) ──
+# ─── 3. PULIHKAN .env ──────────────────────────────
 if [ -f .env.bak ] && [ ! -f .env ]; then
   mv .env.bak .env
   ok ".env dipulihkan"
 fi
 
-# ─── 4. REBUILD + JALANKAN ───────────────────────────
-info "Rebuild & restart Docker..."
-docker compose up -d --build
+# ─── 4. UPDATE SESUAI MODE ─────────────────────────
+if [ "$IS_DOCKER" = "1" ]; then
+  info "Rebuild & restart Docker..."
+  docker compose up -d --build
+  info "Migrasi database..."
+  docker compose exec -T app bun run src/db/migrate.ts 2>/dev/null || true
+  ok "Migrasi selesai."
+else
+  info "bun install (dependencies baru, kalau ada)..."
+  bun install || true
+  info "Migrasi database..."
+  bun run src/db/migrate.ts || true
+  ok "Migrasi selesai."
+  info "Restart service systemd..."
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q "^rentalrdp.service"; then
+    systemctl restart rentalrdp
+  else
+    warn "Service rentalrdp tidak ditemukan. Jalankan ulang: nohup bun run src/index.ts &"
+  fi
+fi
 
-# ─── 5. MIGRATE (bikin tabel baru kalau ada) ─────────
-info "Migrasi database..."
-docker compose exec -T app bun run src/db/migrate.ts 2>/dev/null || true
-ok "Migrasi selesai."
-
-# ─── 6. CEK HEALTH ───────────────────────────────────
+# ─── 5. CEK HEALTH ─────────────────────────────────
 info "Menunggu aplikasi siap..."
 for i in $(seq 1 20); do
   if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
     ok "Aplikasi berjalan normal!"
     break
   fi
-  [ $i -eq 20 ] && warn "Aplikasi belum merespon. Cek: docker compose logs app"
+  [ $i -eq 20 ] && warn "Aplikasi belum merespon. Cek log: journalctl -u rentalrdp -f  (atau docker compose logs app)"
   sleep 2
 done
 
 echo ""
 echo -e " ${GREEN}SELESAI!${NC} Aplikasi sudah diperbarui."
 echo "  Periksa: http://localhost:3000/api/health"
-echo "  Log    : docker compose logs -f"

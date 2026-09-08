@@ -119,6 +119,31 @@ Server kamu sekarang bisa diakses dari internet pada `IP:3000`.
 
 ---
 
+## 🟩 Khusus Proxmox — Install di LXC (container ringan, bukan VM)
+
+**Ya, LXC didukung penuh.** Malah ada cara yang **lebih ringan lagi**: jalankan **langsung dengan Bun** (tanpa Docker, tanpa PostgreSQL) — cukup `RAM ±150–250MB`, cocok untuk LXC yang kamu kasih RAM kecil. Tidak perlu container privileged / nesting.
+
+> Perbandingan: Docker + Postgres ≈ 700MB–1GB RAM. **Langsung Bun + PGlite ≈ 150–250MB RAM.**
+
+### Cara install di LXC
+
+1. **Buat LXC di Proxmox:** template **Ubuntu 22.04/24.04**, RAM 512MB+, disk 8GB+ (opsional, tidak perlu privileged).
+2. Masuk ke console LXC (atau `pct enter ID`).
+3. Clone kode (lihat Bagian 1: install git+gh → `gh auth login` → `gh repo clone Miriprian/rentalrdp /opt`), lalu:
+4. Jalankan installer khusus LXC (ringan, tanpa Docker):
+   ```bash
+   cd /opt/rentalrdp
+   chmod +x install-lxc.sh
+   sudo ./install-lxc.sh
+   ```
+   Ini otomatis: install Bun → `.env` (secret acak) → migrate → seed → **daftarkan sebagai systemd service** (auto-start saat container boot → mati-hidup Proxmox juga ikut jalan lagi).
+
+5. Selesai: **`http://IP_LXC:3000`** — login `obake/obake`, ganti password segera.
+
+> **Catatan LXC:** karena berjalan tanpa Docker, backup/manage/update pakai `sudo ./manage.sh` dan `sudo ./update.sh` (sudah otomatis mendeteksi mode tanpa Docker).
+
+---
+
 ## Bagian 6 — Perintah Sehari-hari
 
 ```bash
