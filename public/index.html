@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>rentalrdp.com — Rental PC Bare Metal (Fisik Beneran)</title>
-<meta name="description" content="Sewa PC fisik bare metal online. Bukan VPS, bukan Proxmox virtual. Full RDP + IP publik."/>
+<title data-i18n="doc_title">rentalrdp.com — Rental PC Bare Metal (Perangkat Fisik)</title>
+<meta name="description" content="Sewa PC fisik bare metal secara online. Bukan VPS atau virtualisasi Proxmox. Akses RDP penuh + IP publik."/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
@@ -25,17 +25,17 @@
     <div class="text-2xl">🖥️</div>
     <div>
       <div class="font-extrabold text-lg leading-none">rentalrdp<span class="text-emerald-400">.com</span></div>
-      <div class="text-[11px] text-slate-400">Bare Metal • Fisik Beneran • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
+      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare Metal • Perangkat Fisik • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="#katalog" class="px-3 py-2 hover:text-emerald-300">Katalog</a>
-      <a href="#cara" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">Cara Sewa</a>
-      <a href="#faq" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">FAQ</a>
+      <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 hover:text-emerald-300">Katalog</a>
+      <a href="#cara" data-i18n="nav_cara" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">Cara Sewa</a>
+      <a href="#faq" data-i18n="nav_faq" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">FAQ</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <a id="btnDash" href="/app" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard</a>
-      <a id="btnAdminNav" href="/admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
-      <button id="btnLogin" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold">Masuk</button>
-      <button id="btnLogout" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+      <a id="btnDash" href="/app" data-i18n="nav_dashboard" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard</a>
+      <a id="btnAdminNav" href="/admin" data-i18n="nav_admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
+      <button id="btnLogin" data-i18n="nav_masuk" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold">Masuk</button>
+      <button id="btnLogout" data-i18n="nav_keluar" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
     </nav>
   </div>
 </header>
@@ -43,27 +43,27 @@
 <!-- HERO -->
 <section class="max-w-7xl mx-auto px-4 pt-10 pb-6 grid md:grid-cols-2 gap-8 items-center">
   <div>
-    <div class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full badge-bare text-white mb-4">🟢 100% BARE METAL — KOMPUTER FISIK • BUKAN VPS • BUKAN PROXMOX VIRTUAL</div>
-    <h1 class="text-4xl md:text-5xl font-extrabold leading-tight">Sewa PC Fisik Online.<br/><span class="text-emerald-400">RDP Full Akses.</span> Siap Pakai.</h1>
-    <p class="mt-4 text-slate-300">Unit <b>komputer fisik beneran</b> — CPU, GPU, RAM & SSD sepenuhnya milikmu selama sewa. Bukan sharing resource virtual. Cocok untuk game, render, bot, kantor, olshop, coding & emulator.</p>
+    <div data-i18n="badge_bare" class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full badge-bare text-white mb-4"></div>
+    <h1 data-i18n-html="hero_h1" class="text-4xl md:text-5xl font-extrabold leading-tight"></h1>
+    <p data-i18n-html="hero_p" class="mt-4 text-slate-300"></p>
     <div class="mt-6 flex flex-wrap gap-3">
-      <a href="#katalog" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Lihat Katalog PC →</a>
-      <a id="heroWA" href="#" target="_blank" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700">💬 Chat Admin</a>
+      <a href="#katalog" data-i18n="cta_katalog" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold"></a>
+      <a id="heroWA" href="#" target="_blank" data-i18n="cta_wa" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700"></a>
     </div>
     <div class="mt-6 grid grid-cols-3 gap-3 text-center text-xs">
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" id="statUnits">—</div><div class="text-slate-400">Unit Fisik</div></div>
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300">Hampir 24/7</div><div class="text-slate-400">Online (listrik nyambung)</div></div>
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300">Full</div><div class="text-slate-400">Akses RDP</div></div>
+      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" id="statUnits">—</div><div data-i18n="stat_units" class="text-slate-400"></div></div>
+      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_uptime">Hampir 24/7</div><div data-i18n="stat_uptime_sub" class="text-slate-400"></div></div>
+      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_full">Full</div><div data-i18n="stat_rdp" class="text-slate-400"></div></div>
     </div>
   </div>
   <div class="card rounded-2xl p-5">
-    <div class="text-sm font-bold mb-2">🔌 Kenapa bare metal, bukan virtual?</div>
+    <div data-i18n="why_title" class="text-sm font-bold mb-2"></div>
     <ul class="text-sm text-slate-300 space-y-2">
-      <li>✅ <b>Performa utuh</b> — tidak rebutan CPU/RAM dengan tetangga VPS.</li>
-      <li>✅ <b>GPU fisik</b> (RTX) untuk game, render & AI — jarang ada di VPS murah.</li>
-      <li>✅ <b>IP publik + RDP port 3389</b> — konek dari Windows / Android / Mac.</li>
-      <li>✅ <b>Privasi</b> — tiap sewa dibuatkan <span class="mono">user RDP unik</span>, dihapus otomatis saat selesai.</li>
-      <li>❌ <b>Bukan Proxmox virtual</b> — kami tulis jelas spek fisik tiap unit.</li>
+      <li data-i18n-html="why_1"></li>
+      <li data-i18n-html="why_2"></li>
+      <li data-i18n-html="why_3"></li>
+      <li data-i18n-html="why_4"></li>
+      <li data-i18n-html="why_5"></li>
     </ul>
     <div id="noticeBox" class="mt-4 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-xl p-3"></div>
   </div>
@@ -72,28 +72,28 @@
 <!-- KATALOG -->
 <section id="katalog" class="max-w-7xl mx-auto px-4 py-8">
   <div class="flex items-end gap-3 mb-4">
-    <h2 class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
-    <span class="text-xs text-slate-400">status live dari server</span>
-    <button id="btnRefresh" class="ml-auto text-xs px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">↻ Refresh</button>
+    <h2 data-i18n="katalog_title" class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
+    <span data-i18n="katalog_sub" class="text-xs text-slate-400">status terkini dari server</span>
+    <button id="btnRefresh" data-i18n="btn_refresh" class="ml-auto text-xs px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">↻ Muat Ulang</button>
   </div>
   <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </section>
 
 <!-- CARA -->
 <section id="cara" class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-4">
-  <div class="card rounded-2xl p-5"><div class="text-2xl">1️⃣</div><h3 class="font-bold mt-2">Pilih PC + Paket</h3><p class="text-sm text-slate-300 mt-1">Per jam / harian / mingguan / bulanan. Klik <b>Sewa</b>, isi voucher & metode bayar (QRIS/transfer).</p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">2️⃣</div><h3 class="font-bold mt-2">Bayar & Tunggu Verifikasi</h3><p class="text-sm text-slate-300 mt-1">Bayar sesuai total, isi bukti bayar. Admin verifikasi (biasanya &lt; 15 menit jam kerja).</p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">3️⃣</div><h3 class="font-bold mt-2">Terima RDP + Gas</h3><p class="text-sm text-slate-300 mt-1">Dapat <span class="mono">IP : User : Password</span> di Dashboard. Konek via Remote Desktop. Selesai? User dihapus otomatis.</p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">1️⃣</div><h3 data-i18n="cara_title_1" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">2️⃣</div><h3 data-i18n="cara_title_2" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">3️⃣</div><h3 data-i18n="cara_title_3" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p></div>
 </section>
 
 <!-- FAQ -->
 <section id="faq" class="max-w-7xl mx-auto px-4 py-8">
-  <h2 class="text-2xl font-extrabold mb-4">FAQ</h2>
-  <div class="grid gap-3 text-sm max-w-3xl">
-    <details class="card rounded-xl p-4"><summary class="font-bold">Ini VPS / Proxmox virtual?</summary><p class="mt-2 text-slate-300"><b>Bukan.</b> Semua unit adalah komputer fisik (bare metal). Kamu dapat seluruh resource mesin selama sewa.</p></details>
-    <details class="card rounded-xl p-4"><summary class="font-bold">Bagaimana cara konek?</summary><p class="mt-2 text-slate-300">Windows: aplikasi <i>Remote Desktop Connection</i> (mstsc). Android: aplikasi <i>RD Client</i> Microsoft. Masukkan IP, user, password dari Dashboard.</p></details>
-    <details class="card rounded-xl p-4"><summary class="font-bold">Apakah boleh install aplikasi/game?</summary><p class="mt-2 text-slate-300">Boleh, selama legal & tidak melanggar hukum. Dilarang untuk judi, phising, DDoS, mining ilegal, dan konten ilegal.</p></details>
-    <details class="card rounded-xl p-4"><summary class="font-bold">Perpanjang sewa?</summary><p class="mt-2 text-slate-300">Bisa dari Dashboard → Rental Aktif → Perpanjang. Bayar selisih via WA admin agar tidak kehapus.</p></details>
+  <h2 data-i18n="faq_title" class="text-2xl font-extrabold mb-4 text-center"></h2>
+  <div class="grid gap-3 text-sm max-w-3xl mx-auto">
+    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_1" class="font-bold text-center"></summary><p data-i18n-html="faq_a_1" class="mt-2 text-slate-300 text-center"></p></details>
+    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_2" class="font-bold text-center"></summary><p data-i18n-html="faq_a_2" class="mt-2 text-slate-300 text-center"></p></details>
+    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_3" class="font-bold text-center"></summary><p data-i18n-html="faq_a_3" class="mt-2 text-slate-300 text-center"></p></details>
+    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_4" class="font-bold text-center"></summary><p data-i18n-html="faq_a_4" class="mt-2 text-slate-300 text-center"></p></details>
   </div>
 </section>
 
@@ -101,12 +101,16 @@
 
 <footer class="border-t border-slate-800 mt-10">
   <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
-    <span>© 2026 rentalrdp.com — Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline" href="/app">Dashboard</a> • <a class="underline" href="/admin">Admin</a> • API: <a class="underline" href="/api/health">/api/health</a></span>
+    <span data-i18n="footer_copy">© 2026 rentalrdp.com — Bare metal rental.</span>
+    <span class="ml-auto"><a class="underline" href="/app" data-i18n="nav_dashboard">Dashboard</a> • <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a> • API: <a class="underline" href="/api/health">/api/health</a></span>
+    <select id="langSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Language / Bahasa">
+      <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
+      <option value="en" data-i18n="ln_en">🇬🇧 English</option>
+    </select>
     <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
-      <option value="system">🖥️ System</option>
-      <option value="light">☀️ Light</option>
-      <option value="dark">🌙 Dark</option>
+      <option value="system" data-i18n="ln_system">🖥️ System</option>
+      <option value="light" data-i18n="ln_light">☀️ Light</option>
+      <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
     </select>
   </div>
 </footer>
@@ -114,23 +118,23 @@
 <!-- AUTH MODAL -->
 <dialog id="authModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(440px,95vw)]">
   <div class="p-6">
-    <div class="flex items-center mb-4"><h3 id="authTitle" class="font-extrabold text-lg">Masuk</h3><button class="ml-auto text-slate-400" onclick="document.getElementById('authModal').close()">✕</button></div>
+    <div class="flex items-center mb-4"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('authModal').close()">✕</button></div>
     <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
-      <button id="tabLogin" class="py-2 rounded-lg bg-emerald-600 font-bold">Login</button>
-      <button id="tabReg" class="py-2 rounded-lg bg-slate-800">Daftar</button>
+      <button id="tabLogin" data-i18n="tab_login" class="py-2 rounded-lg bg-emerald-600 font-bold">Login</button>
+      <button id="tabReg" data-i18n="tab_reg" class="py-2 rounded-lg bg-slate-800">Daftar</button>
     </div>
     <div id="loginForm" class="space-y-3">
-      <input id="liUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username / email" autocomplete="username"/>
-      <input id="liPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password" autocomplete="current-password"/>
-      <button id="doLogin" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Masuk</button>
+      <input id="liUser" data-i18n-ph="ph_username" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username / email" autocomplete="username"/>
+      <input id="liPass" type="password" data-i18n-ph="ph_password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password" autocomplete="current-password"/>
+      <button id="doLogin" data-i18n="tab_login" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Masuk</button>
     </div>
     <div id="regForm" class="space-y-3 hidden">
-      <input id="rgUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username (3-24)" autocomplete="username"/>
-      <input id="rgEmail" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="email"/>
-      <input id="rgName" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="nama lengkap"/>
-      <input id="rgWA" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="no. WA (08...)"/>
-      <input id="rgPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password min 6" autocomplete="new-password"/>
-      <button id="doReg" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Daftar</button>
+      <input id="rgUser" data-i18n-ph="ph_username_reg" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username (3-24)" autocomplete="username"/>
+      <input id="rgEmail" data-i18n-ph="ph_email" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="email"/>
+      <input id="rgName" data-i18n-ph="ph_fullname" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="nama lengkap"/>
+      <input id="rgWA" data-i18n-ph="ph_wa" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="no. WA (08...)"/>
+      <input id="rgPass" type="password" data-i18n-ph="ph_passreg" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password min 6" autocomplete="new-password"/>
+      <button id="doReg" data-i18n="tab_reg" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Daftar</button>
     </div>
     <div id="authMsg" class="text-xs mt-3 text-amber-300"></div>
   </div>
@@ -139,24 +143,26 @@
 <!-- ORDER MODAL -->
 <dialog id="orderModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(520px,95vw)]">
   <div class="p-6">
-    <div class="flex items-center mb-2"><h3 class="font-extrabold text-lg">Sewa Unit</h3><button class="ml-auto text-slate-400" onclick="document.getElementById('orderModal').close()">✕</button></div>
+    <div class="flex items-center mb-2"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('orderModal').close()">✕</button></div>
     <div id="orderPC" class="text-sm text-slate-300 mb-4"></div>
-    <label class="text-xs text-slate-400">Paket durasi</label>
+    <label data-i18n="ph_plan" class="text-xs text-slate-400"></label>
     <select id="orderPlan" class="w-full mt-1 mb-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"></select>
     <div class="grid grid-cols-2 gap-3">
-      <div><label class="text-xs text-slate-400">Voucher (opsional)</label><input id="orderVoucher" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 mono" placeholder="WELCOME10"/></div>
-      <div><label class="text-xs text-slate-400">Bayar via</label><select id="orderPay" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div>
+      <div><label data-i18n="ph_voucher" class="text-xs text-slate-400"></label><input id="orderVoucher" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 mono" placeholder="WELCOME10"/></div>
+      <div><label data-i18n="ph_pay" class="text-xs text-slate-400"></label><select id="orderPay" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div>
     </div>
-    <label class="text-xs text-slate-400 mt-3 block">Catatan</label>
+    <label data-i18n="ph_note" class="text-xs text-slate-400 mt-3 block"></label>
     <input id="orderNote" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="kebutuhan: game apa, render, bot, dsb"/>
     <div id="orderTotal" class="mt-3 text-sm font-bold text-emerald-300"></div>
     <div id="payInfo" class="mt-2 text-xs text-slate-300 bg-slate-800 rounded-xl p-3"></div>
-    <button id="doOrder" class="mt-4 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Buat Order</button>
+    <button id="doOrder" data-i18n="btn_order" class="mt-4 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Buat Order</button>
     <div id="orderMsg" class="text-xs mt-2 text-amber-300"></div>
   </div>
 </dialog>
 
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
+<script src="/js/i18n.js"></script>
+<script>langInit();</script>
 <script src="/js/common.js"></script>
 <script src="/js/landing.js"></script>
 </body>

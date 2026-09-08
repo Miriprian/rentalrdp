@@ -42,9 +42,9 @@ const rupiah = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 function dl(h) { const d = new Date(h); const ms = d.getTime() - Date.now(); if (ms <= 0) return "berakhir"; const H = Math.floor(ms / 3600000), M = Math.floor((ms % 3600000) / 60000); if (H > 48) return Math.floor(H / 24) + " hari lagi"; return `${H}j ${M}m lagi`; }
 function statusBadge(s) {
-  const m = { available: ["Tersedia", "bg-emerald-600"], rented: ["Disewa", "bg-red-600"], maintenance: ["Maintenance", "bg-amber-600"], offline: ["Offline", "bg-slate-600"] };
-  const [t, c] = m[s] || [s, "bg-slate-600"];
-  return `<span class="text-[11px] px-2 py-1 rounded-full ${c} font-bold">${t}</span>`;
+  const m = { available: [t("status_available"), "bg-emerald-600"], rented: [t("status_rented"), "bg-red-600"], maintenance: [t("status_maintenance"), "bg-amber-600"], offline: [t("status_offline"), "bg-slate-600"] };
+  const [label, c] = m[s] || [s, "bg-slate-600"];
+  return `<span class="text-[11px] px-2 py-1 rounded-full ${c} font-bold">${label}</span>`;
 }
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
@@ -64,7 +64,7 @@ function hwDetailHtml(p) {
   if (hw.gpuVramGb) lines.push(`🎮 VRAM: ${hw.gpuVramGb}GB`);
   if (hw.cpuCores) lines.push(`🧠 ${hw.cpuCores} core / ${hw.cpuThreads || hw.cpuCores} thread${hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : ""}`);
   if (!lines.length) return "";
-  return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">📋 Spek detail</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
+  return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">${t("hw_detail")}</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
 }
 
 async function loadMe() {
@@ -93,12 +93,12 @@ function navInit(active) {
 // Kartu login inline untuk /app & /admin saat belum login
 function loginCardHtml(target) {
   return `<div class="card rounded-2xl p-6 max-w-md mx-auto text-sm space-y-3">
-    <h2 class="font-extrabold text-lg">Masuk dulu</h2>
-    <p class="text-slate-400 text-xs">Halaman ini butuh login. Setelah masuk kamu akan diarahkan ke ${esc(target)}.</p>
-    <input id="liUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username / email" autocomplete="username"/>
-    <input id="liPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password" autocomplete="current-password"/>
-    <button onclick="inlineLogin('${target}')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Masuk</button>
-    <div class="text-xs text-slate-400">Belum punya akun? <a class="text-emerald-300 underline" href="/">Daftar di beranda</a></div>
+    <h2 class="font-extrabold text-lg">${t("login_first_title")}</h2>
+    <p class="text-slate-400 text-xs">${esc(t("login_first_desc", { target }))}</p>
+    <input id="liUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="${esc(t("ph_username"))}" autocomplete="username"/>
+    <input id="liPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="${esc(t("ph_password"))}" autocomplete="current-password"/>
+    <button onclick="inlineLogin('${target}')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">${t("tab_login")}</button>
+    <div class="text-xs text-slate-400">${t("no_account")}</div>
     <div id="loginMsg" class="text-xs text-amber-300"></div>
   </div>`;
 }
@@ -111,11 +111,11 @@ window.inlineLogin = async function (target) {
 // Blok ganti password dipakai di /app & /admin
 function akunHtml() {
   return `<div class="card rounded-xl p-5 max-w-md text-sm space-y-3">
-    <div>Username: <b>${esc(state.me.username)}</b> • Email: ${esc(state.me.email || "")}</div>
-    <input id="oldP" type="password" placeholder="password lama" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
-    <input id="newP" type="password" placeholder="password baru min 6" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
-    <button onclick="changePass()" class="px-5 py-3 rounded-xl bg-emerald-600 font-bold">Ganti Password</button>
-    ${state.me.username === "obake" ? `<div class="text-xs text-amber-300">⚠️ Kamu login sebagai superadmin default <b>obake/obake</b>. WAJIB ganti password sekarang.</div>` : ""}
+    <div>${t("akun_username")}<b>${esc(state.me.username)}</b> • ${t("akun_email")}${esc(state.me.email || "")}</div>
+    <input id="oldP" type="password" placeholder="${esc(t("ph_old_pass"))}" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
+    <input id="newP" type="password" placeholder="${esc(t("ph_new_pass"))}" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
+    <button onclick="changePass()" class="px-5 py-3 rounded-xl bg-emerald-600 font-bold">${t("btn_change_pass")}</button>
+    ${state.me.username === "obake" ? `<div class="text-xs text-amber-300">${t("warn_obake")}</div>` : ""}
   </div>`;
 }
 window.changePass = async function () {

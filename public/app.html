@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Dashboard — rentalrdp.com</title>
+<title data-i18n="doc_title_app">Dashboard — rentalrdp.com</title>
 <meta name="description" content="Dashboard penyewa rentalrdp.com — pesanan, RDP, akun."/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
@@ -21,13 +21,13 @@
     <a href="/" class="text-2xl" title="Beranda">🖥️</a>
     <div>
       <div class="font-extrabold text-lg leading-none">rentalrdp<span class="text-emerald-400">.com</span></div>
-      <div class="text-[11px] text-slate-400">Dashboard Penyewa</div>
+      <div data-i18n="tagline_user" class="text-[11px] text-slate-400">Dashboard Penyewa</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="/" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Katalog</a>
-      <a id="btnAdminLink" href="/admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
+      <a href="/" data-i18n="nav_kembali_katalog" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Katalog</a>
+      <a id="btnAdminLink" href="/admin" data-i18n="nav_admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <button id="btnLogout" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+      <button id="btnLogout" data-i18n="nav_keluar" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
     </nav>
   </div>
 </header>
@@ -42,17 +42,23 @@
 
 <footer class="border-t border-slate-800 mt-10">
   <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
-    <span>© 2026 rentalrdp.com — Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline" href="/">Beranda</a> • <a class="underline" href="/admin">Admin</a></span>
+    <span data-i18n="footer_copy">© 2026 rentalrdp.com — Bare metal rental.</span>
+    <span class="ml-auto"><a class="underline" href="/" data-i18n="nav_beranda">Beranda</a> • <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a></span>
+    <select id="langSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Language / Bahasa">
+      <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
+      <option value="en" data-i18n="ln_en">🇬🇧 English</option>
+    </select>
     <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
-      <option value="system">🖥️ System</option>
-      <option value="light">☀️ Light</option>
-      <option value="dark">🌙 Dark</option>
+      <option value="system" data-i18n="ln_system">🖥️ System</option>
+      <option value="light" data-i18n="ln_light">☀️ Light</option>
+      <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
     </select>
   </div>
 </footer>
 
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
+<script src="/js/i18n.js"></script>
+<script>langInit();</script>
 <script src="/js/common.js"></script>
 <script src="/js/user.js"></script>
 </body>
