@@ -1,67 +1,52 @@
 <!doctype html>
-<html lang="id" data-bs-theme="dark">
+<html lang="id">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex, nofollow"/>
 <title>Admin Panel — rentalrdp.com</title>
 <meta name="description" content="Panel admin rentalrdp.com — verifikasi order, kelola PC bare metal, rental, user."/>
+<script src="https://cdn.tailwindcss.com"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0/dist/css/tabler.min.css"/>
 <style>
-  .hidden{display:none!important}
+  body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  .card{background:#0f172a;border:1px solid #1e293b}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-  .fw-extrabold{font-weight:800}
-  .bg-soft{background:rgba(127,127,127,.1)}
-  #toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);z-index:2000;padding:.75rem 1.25rem;border-radius:var(--tblr-border-radius);background:var(--tblr-bg-surface);border:1px solid var(--tblr-border-color);font-size:.875rem;box-shadow:0 .5rem 1rem rgba(0,0,0,.4);max-width:92vw}
 </style>
 </head>
-<body>
-<div class="page">
-<header class="navbar navbar-expand-md navbar-dark d-print-none sticky-top">
-  <div class="container-xl">
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-label="Menu">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <a href="/" class="navbar-brand navbar-brand-autodark">
-      <span class="navbar-brand-image">🛠️</span>
-      Admin Panel
-      <span class="navbar-text d-none d-lg-inline small text-secondary ms-2">rentalrdp.com — khusus admin & superadmin</span>
-    </a>
-    <div class="navbar-nav flex-row order-md-last align-items-center gap-1">
-      <a href="/" class="btn btn-dark btn-sm">← Beranda</a>
-      <a href="/app" class="btn btn-dark btn-sm">Dashboard User</a>
-      <span id="navUser" class="navbar-text d-none d-md-block small text-secondary me-1"></span>
-      <button id="btnLogout" class="btn btn-dark btn-sm hidden">Keluar</button>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+<header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-amber-700/40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+    <a href="/" class="text-2xl" title="Beranda">🛠️</a>
+    <div>
+      <div class="font-extrabold text-lg leading-none">Admin Panel <span class="text-amber-300 text-xs font-bold border border-amber-500/40 rounded-full px-2 py-0.5">/admin</span></div>
+      <div class="text-[11px] text-slate-400">rentalrdp.com — khusus admin & superadmin</div>
     </div>
-    <div class="collapse navbar-collapse" id="navMain">
-      <div class="navbar-nav flex-grow"></div>
-    </div>
+    <nav class="ml-auto flex items-center gap-2 text-sm">
+      <a href="/" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Beranda</a>
+      <a href="/app" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard User</a>
+      <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
+      <button id="btnLogout" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+    </nav>
   </div>
 </header>
 
-<div class="page-wrapper">
-<div class="page-body">
-<div class="container-xl" id="dashWrap">
-  <h1 class="h3 fw-bold mb-1">Admin Panel</h1>
-  <div id="dashRole" class="small text-secondary mb-4"></div>
-  <div class="d-flex flex-wrap gap-2 mb-4" id="dashTabs"></div>
+<main class="max-w-7xl mx-auto px-4 py-8" id="dashWrap">
+  <h1 class="text-2xl font-extrabold mb-1">Admin Panel</h1>
+  <div id="dashRole" class="text-xs text-slate-400 mb-4"></div>
+  <div class="flex flex-wrap gap-2 mb-4 text-sm" id="dashTabs"></div>
   <div id="dashBody"></div>
-</div>
-</div>
+</main>
 
-<footer class="footer footer-transparent d-print-none mt-6">
-  <div class="container-xl d-flex flex-wrap gap-2 small text-secondary py-4">
+<footer class="border-t border-slate-800 mt-10">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap gap-2">
     <span>© 2026 rentalrdp.com — Admin Panel.</span>
-    <span class="ms-auto"><a class="link-secondary" href="/">Beranda</a> • <a class="link-secondary" href="/app">Dashboard User</a> • <a class="link-secondary" href="/api/health">API</a></span>
+    <span class="ml-auto"><a class="underline" href="/">Beranda</a> • <a class="underline" href="/app">Dashboard User</a> • <a class="underline" href="/api/health">API</a></span>
   </div>
 </footer>
-</div>
-</div>
 
-<div id="toast" class="hidden"></div>
-<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0/dist/js/tabler.min.js"></script>
-<script src="/js/common.js?v=4"></script>
-<script src="/js/admin.js?v=4"></script>
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
+<script src="/js/common.js?v=3"></script>
+<script src="/js/admin.js?v=3"></script>
 </body>
 </html>

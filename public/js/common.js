@@ -1,38 +1,11 @@
-/* rentalrdp.com — helper bersama (Tabler / Bootstrap 5, no build) */
+/* rentalrdp.com — helper bersama (no build) */
 const $ = (s) => document.querySelector(s);
 const state = { me: null };
-function openModal(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (window.bootstrap?.Modal) { new bootstrap.Modal(el).show(); return; }
-  el.classList.add("show");
-  el.style.display = "block";
-  document.body.classList.add("modal-open");
-  if (!document.querySelector(".modal-backdrop")) {
-    const bd = document.createElement("div");
-    bd.className = "modal-backdrop fade show";
-    document.body.appendChild(bd);
-  }
-}
-function closeModal(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (window.bootstrap?.Modal) {
-    const m = bootstrap.Modal.getInstance(el);
-    if (m) { m.hide(); return; }
-    el.classList.remove("show");
-  }
-  el.classList.remove("show");
-  el.style.display = "";
-  const bd = document.querySelector(".modal-backdrop");
-  if (bd) bd.remove();
-  document.body.classList.remove("modal-open");
-}
 
 function toast(msg) {
   const t = $("#toast");
   if (!t) return alert(msg);
-  t.innerHTML = msg;
+  t.textContent = msg;
   t.classList.remove("hidden");
   clearTimeout(t._h);
   t._h = setTimeout(() => t.classList.add("hidden"), 3200);
@@ -48,9 +21,9 @@ const rupiah = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 function dl(h) { const d = new Date(h); const ms = d.getTime() - Date.now(); if (ms <= 0) return "berakhir"; const H = Math.floor(ms / 3600000), M = Math.floor((ms % 3600000) / 60000); if (H > 48) return Math.floor(H / 24) + " hari lagi"; return `${H}j ${M}m lagi`; }
 function statusBadge(s) {
-  const m = { available: ["Tersedia", "bg-success"], rented: ["Disewa", "bg-danger"], maintenance: ["Maintenance", "bg-warning text-dark"], offline: ["Offline", "bg-secondary"] };
-  const [t, c] = m[s] || [s, "bg-secondary"];
-  return `<span class="badge rounded-pill ${c}">${t}</span>`;
+  const m = { available: ["Tersedia", "bg-emerald-600"], rented: ["Disewa", "bg-red-600"], maintenance: ["Maintenance", "bg-amber-600"], offline: ["Offline", "bg-slate-600"] };
+  const [t, c] = m[s] || [s, "bg-slate-600"];
+  return `<span class="text-[11px] px-2 py-1 rounded-full ${c} font-bold">${t}</span>`;
 }
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
@@ -70,7 +43,7 @@ function hwDetailHtml(p) {
   if (hw.gpuVramGb) lines.push(`🎮 VRAM: ${hw.gpuVramGb}GB`);
   if (hw.cpuCores) lines.push(`🧠 ${hw.cpuCores} core / ${hw.cpuThreads || hw.cpuCores} thread${hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : ""}`);
   if (!lines.length) return "";
-  return `<details class="mt-2 small text-secondary"><summary class="text-primary cursor-pointer">📋 Spek detail</summary><div class="mt-1 d-flex flex-column gap-1">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
+  return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">📋 Spek detail</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
 }
 
 async function loadMe() {
@@ -98,16 +71,14 @@ function navInit(active) {
 
 // Kartu login inline untuk /app & /admin saat belum login
 function loginCardHtml(target) {
-  return `<div class="card mx-auto" style="max-width:26rem">
-    <div class="card-body">
-      <h2 class="card-title mb-1">Masuk dulu</h2>
-      <p class="text-secondary small">Halaman ini butuh login. Setelah masuk kamu akan diarahkan ke ${esc(target)}.</p>
-      <input id="liUser" class="form-control mb-2" placeholder="username / email" autocomplete="username"/>
-      <input id="liPass" type="password" class="form-control mb-2" placeholder="password" autocomplete="current-password"/>
-      <button onclick="inlineLogin('${target}')" class="btn btn-primary w-100">Masuk</button>
-      <div class="text-secondary small mt-2">Belum punya akun? <a class="text-decoration-underline" href="/">Daftar di beranda</a></div>
-      <div id="loginMsg" class="small text-warning mt-2"></div>
-    </div>
+  return `<div class="card rounded-2xl p-6 max-w-md mx-auto text-sm space-y-3">
+    <h2 class="font-extrabold text-lg">Masuk dulu</h2>
+    <p class="text-slate-400 text-xs">Halaman ini butuh login. Setelah masuk kamu akan diarahkan ke ${esc(target)}.</p>
+    <input id="liUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username / email" autocomplete="username"/>
+    <input id="liPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password" autocomplete="current-password"/>
+    <button onclick="inlineLogin('${target}')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Masuk</button>
+    <div class="text-xs text-slate-400">Belum punya akun? <a class="text-emerald-300 underline" href="/">Daftar di beranda</a></div>
+    <div id="loginMsg" class="text-xs text-amber-300"></div>
   </div>`;
 }
 window.inlineLogin = async function (target) {
@@ -118,14 +89,12 @@ window.inlineLogin = async function (target) {
 
 // Blok ganti password dipakai di /app & /admin
 function akunHtml() {
-  return `<div class="card mx-auto" style="max-width:26rem">
-    <div class="card-body">
-      <div class="mb-3">Username: <b>${esc(state.me.username)}</b> • Email: ${esc(state.me.email || "")}</div>
-      <input id="oldP" type="password" placeholder="password lama" class="form-control mb-2"/>
-      <input id="newP" type="password" placeholder="password baru min 6" class="form-control mb-2"/>
-      <button onclick="changePass()" class="btn btn-primary">Ganti Password</button>
-      ${state.me.username === "obake" ? `<div class="alert alert-warning small mt-2 mb-0">⚠️ Kamu login sebagai superadmin default <b>obake/obake</b>. WAJIB ganti password sekarang.</div>` : ""}
-    </div>
+  return `<div class="card rounded-xl p-5 max-w-md text-sm space-y-3">
+    <div>Username: <b>${esc(state.me.username)}</b> • Email: ${esc(state.me.email || "")}</div>
+    <input id="oldP" type="password" placeholder="password lama" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
+    <input id="newP" type="password" placeholder="password baru min 6" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
+    <button onclick="changePass()" class="px-5 py-3 rounded-xl bg-emerald-600 font-bold">Ganti Password</button>
+    ${state.me.username === "obake" ? `<div class="text-xs text-amber-300">⚠️ Kamu login sebagai superadmin default <b>obake/obake</b>. WAJIB ganti password sekarang.</div>` : ""}
   </div>`;
 }
 window.changePass = async function () {
