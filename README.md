@@ -160,7 +160,7 @@ agent/              → Agent bare metal Windows/Linux
 
 | Dokumen | Isi |
 |---|---|
-| `INSTALL_AWAM.md` | Panduan instalasi, migrasi server, dan pemecahan masalah |
+| `INSTALL.md` | Panduan instalasi, migrasi server, dan pemecahan masalah |
 | `TUTORIAL_LINUX.md` | Setup produksi di VPS Linux langkah demi langkah (termasuk HTTPS) |
 | `GIT_LINUX.md` | Panduan Git/GitHub untuk pembaruan kode |
 | `LEVEL2_GITHUB_ACTIONS.md` | Otomatisasi build agent + deploy VPS via GitHub Actions |

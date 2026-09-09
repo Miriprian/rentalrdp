@@ -1,5 +1,5 @@
 @echo off
-REM rentalrdp.com — INSTALL 1 KLIK untuk orang awam (Windows)
+REM Rental PC by Miriprian — INSTALL 1 KLIK (Windows)
 REM Cukup double-click file ini. Bun akan dipakai otomatis jika ada, atau portable.
 setlocal
 cd /d %~dp0

@@ -14,7 +14,7 @@ import { rateLimit } from "./lib/rate-limit";
 assertEnv();
 await initDb();
 
-// APP_KEY otomatis dibuat jika kosong (orang awam tidak perlu mikir)
+// APP_KEY otomatis dibuat jika kosong
 if (!env.APP_KEY) {
   const { randomBytes } = await import("node:crypto");
   const hex = randomBytes(32).toString("hex");

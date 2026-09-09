@@ -1,4 +1,4 @@
-// Validasi env + default aman untuk orang awam
+// Validasi env + default yang aman
 function need(name: string, fallback = ""): string {
   const v = (process.env[name] ?? fallback).trim();
   return v;
