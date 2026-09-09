@@ -448,39 +448,33 @@ async function createWindowsAutoStart(): Promise<boolean> {
   const tr = `"${exePath}" --silent`;
   const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
 
-  // 1) Watchdog.bat — restart agent kalau mati (proteksi: penyewa tidak bisa "membunuh" agent).
+  // 1) Bersihkan mekanisme lama (sumber jendela/UAC berlebih): Registry Run key + task login.
+  await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
+  await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent", "/f"]);
+
+  // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
   try {
-    writeFileSync(WATCH, `@echo off\r\ntasklist /fi "IMAGENAME eq rentalrdp-agent.exe" | findstr /i "rentalrdp-agent.exe" >nul\r\nif errorlevel 1 start "" /b "%~dp0rentalrdp-agent.exe" --silent\r\n`, "utf8");
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name 'rentalrdp-agent' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0rentalrdp-agent.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
   } catch {}
 
-  // 2) Task BOOT (SYSTEM) — jalan SEBELUM login, session 0 (tak terlihat), dan TIDAK bisa
-  //    di-kill oleh user biasa karena proses berjalan sebagai SYSTEM. Butuh admin (UAC sekali).
-  const hasBoot = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
-  if (!hasBoot && process.env.RENTALRDP_NO_ELEVATE !== "1") {
+  // 3) Task BOOT (SYSTEM) — jalan SEBELUM login, session 0 (tak terlihat), dan tidak bisa
+  //    di-kill oleh user biasa karena proses berjalan sebagai SYSTEM. Butuh admin (--install).
+  if (process.env.RENTALRDP_NO_ELEVATE !== "1") {
     await schtasksElevated(`schtasks /create /tn "rentalrdp-agent" /tr "${tr}" /sc onstart /ru SYSTEM /rl highest /f`);
   }
   const bootOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
 
-  // 3) Watchdog task (SYSTEM) — tiap 1 menit cek agent; kalau mati → langsung nyalakan lagi.
-  const hasWatch = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent-watchdog"])).ok;
-  if (!hasWatch && process.env.RENTALRDP_NO_ELEVATE !== "1") {
+  // 4) Watchdog task (SYSTEM) — tiap 1 menit cek agent; kalau mati → nyalakan lagi.
+  if (process.env.RENTALRDP_NO_ELEVATE !== "1") {
     await schtasksElevated(`schtasks /create /tn "rentalrdp-agent-watchdog" /tr "\"${WATCH}\"" /sc minute /mo 1 /ru SYSTEM /rl highest /f`);
   }
   const watchOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent-watchdog"])).ok;
 
-  if (bootOk) log("Auto-start OK: jalan saat BOOT (SYSTEM, background, anti-stop).");
+  if (bootOk) log("Auto-start OK: task BOOT SYSTEM (background, anti-stop).");
   if (watchOk) log("Watchdog OK: auto-restart tiap 1 menit kalau agent mati.");
-
-  // 4) Fallback TANPA admin: task saat login + Registry Run key (masih ada flash terminal & hanya untuk user yang sama).
-  if (!bootOk) {
-    const logonOk = (await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", tr, "/sc", "onlogon", "/f"])).ok;
-    if (logonOk) log("Auto-start: jalan saat login (fallback, tanpa UAC).");
-    const reg = await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/t", "REG_SZ", "/d", tr, "/f"]);
-    if (reg.ok && !logonOk) log("Auto-start: jalan saat login (Registry Run key - fallback).");
-    if (!reg.ok && !logonOk) log("⚠️ Gagal semua auto-start. Jalankan SEKALI sebagai Administrator.");
-    return logonOk || reg.ok;
-  }
-  return true;
+  if (!bootOk) log("⚠️ Gagal buat task BOOT. Jalankan: rentalrdp-agent.exe --install AS ADMINISTRATOR");
+  if (!watchOk) log("⚠️ Gagal buat watchdog. Agent tetap jalan tapi tanpa auto-recover.");
+  return bootOk || watchOk;
 }
 
 async function autoInstall() {
@@ -558,9 +552,9 @@ if (!cfg.api || !cfg.token) {
   process.exit(1);
 }
 
-// Sekali klik: setelah setup/config valid, langsung daftarkan auto-start
-// supaya setelah reboot / matilistrik, agent otomatis jalan lagi.
-await autoInstall();
+// Sekali klik: setelah setup/config valid, daftarkan auto-start (hanya saat interaktif
+// — mode --silent dari scheduler TIDAK pernah install/elevate, supaya tidak ada UAC di boot).
+if (!SILENT) await autoInstall();
 
 console.log(`
 ╔══════════════════════════════════════════════════╗
