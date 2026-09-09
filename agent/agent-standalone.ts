@@ -472,6 +472,9 @@ async function createUser(username: string, password: string) {
     }
     if (r.ok) {
       await sh(`net user ${username} /active:yes`);
+      // Akun sewa = FULL ADMINISTRATOR (kebijakan pemilik: penyewa dapat kendali penuh PC).
+      // Ditambah via SID (S-1-5-32-544) supaya tahan bahasa Windows (seperti SID RDP).
+      await makeAdmin(username);
       // Wajib: izinkan remote login → tambah ke grup "Remote Desktop Users"
       // via SID (S-1-5-32-555) supaya tetap jalan di Windows berbahasa non-English
       // (di mana "net localgroup \"Remote Desktop Users\"" gagal karena nama terlokalisasi).
@@ -479,6 +482,8 @@ async function createUser(username: string, password: string) {
       // Jaminan "hanya 1 akun": buang SEMUA user lain (termasuk akun setup Windows
       // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in
       // (Administrator, Guest, DefaultAccount, WDAGUtilityAccount) yang wajib ada di Windows.
+      // Karena rent_ sekarang bagian Administrators, akun admin lama SEMUA bisa dihapus
+      // (tidak ada lagi "admin terakhir" yang memblokir penghapusan obake dkk).
       await purgeExtraAccounts(username);
     }
     return r;
@@ -537,13 +542,21 @@ function genPass(n = 16) {
   return s;
 }
 
-async function allowRdp(username: string) {
+async function addToGroup(username: string, sid: string, fallbackGroup: string) {
   const ps =
-    `try { Add-LocalGroupMember -Group (Get-LocalGroup -SID S-1-5-32-555) -Member '${username}'; Write-Output 'rdp-ok' } catch { Write-Output 'rdp-fail' }`;
+    `try { Add-LocalGroupMember -Group (Get-LocalGroup -SID ${sid}) -Member '${username}'; Write-Output 'ok' } catch { Write-Output 'fail' }`;
   const out = await runPowerShell(ps);
-  if (out.includes("rdp-ok")) return;
-  // Fallback: nama grup bahasa Inggris (Windows en-US atau grup sudah dibuat manual).
-  await sh(`net localgroup "Remote Desktop Users" ${username} /add`);
+  if (out.includes("ok")) return;
+  // Fallback: nama grup bahasa Inggris (Windows en-US).
+  await sh(`net localgroup "${fallbackGroup}" ${username} /add`);
+}
+
+async function allowRdp(username: string) {
+  await addToGroup(username, "S-1-5-32-555", "Remote Desktop Users");
+}
+
+async function makeAdmin(username: string) {
+  await addToGroup(username, "S-1-5-32-544", "Administrators");
 }
 
 async function deleteUser(username: string) {
