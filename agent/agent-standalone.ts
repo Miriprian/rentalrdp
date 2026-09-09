@@ -485,10 +485,13 @@ async function createUser(username: string, password: string) {
       const purged = await purgeExtraAccounts(username);
       // PC auto logout: semua session interaktif diputus → layar login.
       await logoffAllInteractive();
+      // Kunci terakhir: sweep paksa folder profil yatim (obake & rent_ lama yang
+      // akunnya sudah hilang lebih dulu) supaya C:\Users benar-benar bersih.
+      const swept = await sweepOrphanProfiles();
       return {
         ok: true,
         out:
-          `akun terbuat (administrator ${adminOk ? "✓" : "✗"}) | hapus akun lama: ${purged.length ? purged.join("; ") : "tidak ada"} | pc logout`,
+          `akun terbuat (administrator ${adminOk ? "✓" : "✗"}) | hapus akun lama: ${purged.length ? purged.join("; ") : "tidak ada"} | profil: ${swept.length ? swept.map((s) => s.split("|").pop()).join(", ") : "tidak ada"} | pc logout`,
       };
     }
     return r;
@@ -636,6 +639,48 @@ async function removeProfile(sid: string, name: string): Promise<boolean> {
     await new Promise((res) => setTimeout(res, 1500));
   }
   return false;
+}
+
+// Sweep profil YATIM: hapus paksa SEMUA folder profil (C:\Users\*) yang SID-nya
+// bukan milik user lokal yang masih ada (termasuk akun sistem) & bukan profil
+// khusus (Public/Default/dll). Dipanggil di akhir Buat Akun supaya C:\Users bersih.
+async function sweepOrphanProfiles(): Promise<string[]> {
+  const lines: string[] = [];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const ps = `
+$curSids = @(Get-LocalUser | ForEach-Object { $_.SID.Value })
+$skipPrefix = @('S-1-5-18','S-1-5-19','S-1-5-20','S-1-5-80')
+Get-CimInstance Win32_UserProfile | Where-Object { -not $_.Special } | ForEach-Object {
+  $sidTxt = [string]$_.SID
+  if ($curSids -contains $sidTxt) { return }
+  $svc = $false
+  foreach ($s in $skipPrefix) { if ($sidTxt.StartsWith($s)) { $svc = $true } }
+  if ($svc) { return }
+  $path = $_.LocalPath
+  $name = Split-Path -Path $path -Leaf
+  try {
+    if (Test-Path -LiteralPath $path) {
+      Remove-Item -LiteralPath $path -Recurse -Force -Confirm:$false -ErrorAction Stop
+    }
+    Remove-CimInstance -InputObject $_ -ErrorAction SilentlyContinue
+    Write-Output ("OK|" + $name)
+  } catch {
+    Write-Output ("FAIL|" + $name + "|" + $_.Exception.Message)
+  }
+}`;
+      const out = await runPowerShell(ps);
+      for (const row of out.split(/\r?\n/)) {
+        if (/^(OK|FAIL)\|/.test(row)) lines.push(row);
+      }
+      const anyFail = lines.some((l) => l.startsWith("FAIL"));
+      if (!anyFail) break;
+      await new Promise((res) => setTimeout(res, 1500));
+    } catch {
+      break;
+    }
+  }
+  return lines;
 }
 
 async function makeAdmin(username: string) {
