@@ -117,7 +117,7 @@ function prompt(q: string): Promise<string | null> {
 
 // ─── SELF-UPDATE (unduh agent terbaru dari GitHub Releases) ────
 const REPO = "Miriprian/rentalrdp";
-const ASSET_NAME = "rentalrdp-agent.exe";
+const ASSET_NAME = "windows-rentalrdp-agent.exe";
 const API_LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 async function httpText(url: string, timeoutMs = 20000): Promise<string | null> {
@@ -140,8 +140,9 @@ async function latestRelease(): Promise<{ tag: string; url: string } | null> {
     const j = JSON.parse(txt);
     const tag = String(j.tag_name || "");
     const asset =
-      (j.assets || []).find((a: { name: string; browser_download_url: string }) => /^rentalrdp-agent-v.*\.exe$/i.test(a.name)) ||
-      (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME);
+      (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME) ||
+      (j.assets || []).find((a: { name: string; browser_download_url: string }) => /^windows-rentalrdp-agent-v.*\.exe$/i.test(a.name)) ||
+      (j.assets || []).find((a: { name: string; browser_download_url: string }) => /^rentalrdp-agent-v.*\.exe$/i.test(a.name));
     if (!tag || !asset) return null;
     return { tag, url: asset.browser_download_url };
   } catch {

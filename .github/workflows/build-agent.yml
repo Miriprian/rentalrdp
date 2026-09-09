@@ -31,7 +31,7 @@ jobs:
         run: |
           $def = 'METADATA_VERSION=' + ($env:VER | ConvertTo-Json -Compress)
           Write-Output "define: $def"
-          bun build --compile agent/agent-standalone.ts --outfile "agent/rentalrdp-agent-v${env:VER}.exe" --define $def
+          bun build --compile agent/agent-standalone.ts --outfile "agent/windows-rentalrdp-agent-v${env:VER}.exe" --define $def
         env:
           VER: ${{ steps.ver.outputs.VERSION }}
 
@@ -39,18 +39,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rentalrdp-agent-windows
-          path: agent/rentalrdp-agent-v*.exe
+          path: agent/windows-rentalrdp-agent-v*.exe
 
       - name: Publikasi ke halaman Releases
         uses: softprops/action-gh-release@v2
         with:
-          files: agent/rentalrdp-agent-v*.exe
+          files: agent/windows-rentalrdp-agent-v*.exe
           tag_name: agent-${{ github.sha }}
           name: Agent
           body: |
-            Agent terbaru (versi **v${{ steps.ver.outputs.VERSION }}**, rilis dari commit `${{ github.sha }}`).
+            Agent terbaru untuk **Windows** (versi **v${{ steps.ver.outputs.VERSION }}**, rilis dari commit `${{ github.sha }}`).
 
-            File: `rentalrdp-agent-v${{ steps.ver.outputs.VERSION }}.exe` di bagian **Assets** (tab "Show all" kalau tidak terlihat).
+            File: `windows-rentalrdp-agent-v${{ steps.ver.outputs.VERSION }}.exe` di bagian **Assets** (tab "Show all" kalau tidak terlihat).
 
             Untuk cek versi sebuah exe: jalankan `nama_exe --version` (menampilkan versi yang tertanam di dalam file).
           fail_on_unmatched_files: false
