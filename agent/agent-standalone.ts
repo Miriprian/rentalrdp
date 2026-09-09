@@ -483,11 +483,12 @@ async function createUser(username: string, password: string) {
       // Jaminan "hanya 1 akun": buang SEMUA user lain (termasuk akun setup Windows
       // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in.
       const purged = await purgeExtraAccounts(username);
+      // PC auto logout: semua session interaktif diputus → layar login.
+      await logoffAllInteractive();
       return {
         ok: true,
         out:
-          `akun terbuat (administrator ${adminOk ? "✓" : "✗"})` +
-          (purged.length ? ` | hapus akun lama: ${purged.join("; ")}` : " | tidak ada akun lama"),
+          `akun terbuat (administrator ${adminOk ? "✓" : "✗"}) | hapus akun lama: ${purged.length ? purged.join("; ") : "tidak ada"} | pc logout`,
       };
     }
     return r;
@@ -546,12 +547,10 @@ async function purgeExtraAccounts(keep: string): Promise<string[]> {
       }
     };
     for (const u of users) {
+      // Hapus instant: putus dulu SEMUA session akun ini (RDP/console) sebelum hapus,
+      // supaya Windows tidak menolak karena "sedang di gunakan".
+      await endUserSessions(u);
       let d = await sh(`net user "${u}" /delete`);
-      if (!d.ok && !notFoundMsg(d.out)) {
-        // 1) user ini mungkin sedang login → force logout lalu coba lagi.
-        await endUserSessions(u);
-        d = await sh(`net user "${u}" /delete`);
-      }
       if (!d.ok && !notFoundMsg(d.out)) {
         // 2) kalaupun masih gagal ("admin terakhir"): jembatan Administrator sementara.
         await bridge();
@@ -618,6 +617,30 @@ async function allowRdp(username: string) {
 
 async function makeAdmin(username: string) {
   await addToGroup(username, "S-1-5-32-544", "Administrators");
+}
+
+// Logout SEMUA session interaktif (console + RDP) → layar login muncul,
+// penyewa wajib login ulang dengan akun baru. Aman: skip session 0 (SYSTEM)
+// dan skip session milik user yang menjalankan agent (biar agent tidak mati jika
+// dijalankan manual dari sesi user).
+async function logoffAllInteractive() {
+  try {
+    let me = "";
+    try { me = (await sh("whoami")).out.trim().toLowerCase().split("\\").pop() || ""; } catch {}
+    const out = (await sh("query session /format:csv 2>nul")).out;
+    for (const line of out.split(/\r?\n/)) {
+      if (!line.startsWith("\"")) continue;
+      const f = line.replace(/\r/g, "").split(",");
+      const session = (f[0] || "").replace(/"/g, "");
+      const user = (f[1] || "").replace(/"/g, "").trim();
+      const id = (f[2] || "").replace(/"/g, "").trim();
+      const state = (f[3] || "").replace(/"/g, "").trim();
+      if (!session || !/^\d+$/.test(id) || Number(id) === 0) continue;
+      if (state === "Listen") continue;
+      if (me && me !== "system" && user.toLowerCase() === me) continue;
+      await sh(`logoff ${Number(id)} 2>nul`);
+    }
+  } catch {}
 }
 
 async function isMemberAdmin(name: string): Promise<boolean> {
