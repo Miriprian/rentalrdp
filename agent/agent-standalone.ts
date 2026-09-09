@@ -8,14 +8,14 @@
  *   - Auto-create user Windows/Linux saat order di-approve
  *   - Auto-delete user saat rental expired/terminated
  *   - Heartbeat ke server tiap 15 detik
- *   - Tes kecepatan internet otomatis (speedtest.net) tiap boot & tiap 6 jam
+ *   - Tes kecepatan internet otomatis (speedtest.net) tiap boot & tiap 12 jam (+jitter)
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { connect } from "node:net";
-import { hostname } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
 
 // ─── CONFIG ───────────────────────────────────────────────────
@@ -164,11 +164,15 @@ function cmpVersion(a: string, b: string): number {
 
 async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
   const exePath = process.execPath;
-  const tmpDir = join(EXE_DIR, ".update");
-  const tmpNew = join(tmpDir, decodeURIComponent(rel.url.split("/").pop() || ASSET_NAME));
-  const updater = join(tmpDir, "apply-update.bat");
+  // Staging exe baru di folder yang SAMA dengan exe (exePath + ".new") — BUKAN folder .update.
+  // Batch updater dipisah sebagai file tersendiri di %TEMP% (tidak menyatu dengan exe):
+  // bat mematikan agent → menimpa exe asli → mulai ulang → lalu menghapus dirinya sendiri.
+  // Hasil akhir: folder exe tetap bersih, cukup 1 file exe yang sama (ter-replace).
+  const staging = exePath + ".new";
+  const updater = join(tmpdir(), "rentalrdp-apply-update.bat");
   try {
-    mkdirSync(tmpDir, { recursive: true });
+    try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
+    try { rmSync(staging, { force: true }); } catch {}
     log("Mengunduh versi terbaru dari GitHub...");
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 120000);
@@ -176,13 +180,14 @@ async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> 
     clearTimeout(t);
     if (!r.ok) throw new Error("unduh gagal (HTTP " + r.status + ")");
     const buf = await r.arrayBuffer();
-    writeFileSync(tmpNew, Buffer.from(buf));
-    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti exe & restart otomatis...`);
+    writeFileSync(staging, Buffer.from(buf));
+    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti ${AGENT_EXE_NAME} & restart otomatis...`);
     const bat =
       `@echo off\r\nsetlocal\r\ntaskkill /f /im ${AGENT_EXE_NAME} >nul 2>&1\r\n` +
       `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
-      `copy /y "${tmpNew}" "${exePath}" >nul\r\n` +
-      `del /q "${tmpNew}" >nul 2>&1\r\n` +
+      `move /y "${staging}" "${exePath}" >nul 2>&1\r\n` +
+      `if exist "${staging}" copy /y "${staging}" "${exePath}" >nul\r\n` +
+      `del /q "${staging}" >nul 2>&1\r\n` +
       `start "" "${exePath}" --silent\r\n` +
       `del /q "%~f0" >nul 2>&1\r\n`;
     writeFileSync(updater, bat, "utf8");
@@ -906,6 +911,10 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
 const args = process.argv.slice(2);
 const SILENT = args.includes("--silent") || args.includes("-s");
 if (SILENT) hideConsole();
+
+// Bersihkan sisa update lama (folder .update & file .new dari versi terdahulu).
+try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
+try { rmSync(process.execPath + ".new", { force: true }); } catch {}
 
 if (args.includes("--version") || args.includes("-v")) {
   console.log(`${AGENT_EXE_NAME} v${VERSION}`);
