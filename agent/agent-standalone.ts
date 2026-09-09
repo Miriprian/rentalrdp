@@ -533,9 +533,16 @@ async function purgeExtraAccounts(keep: string): Promise<string[]> {
   try {
     const keepE = keep.replace(/'/g, "''");
     const ps =
-      `Get-LocalUser | Where-Object { $_.Name -ne '${keepE}' -and $_.Name -notmatch '(?i)^(administrator|guest|defaultaccount|wdagutilityaccount)$' } | ForEach-Object { $_.Name }`;
+      `Get-LocalUser | Where-Object { $_.Name -ne '${keepE}' -and $_.Name -notmatch '(?i)^(administrator|guest|defaultaccount|wdagutilityaccount)$' } | ForEach-Object { "$($_.Name)|$($_.SID.Value)" }`;
     const out = await runPowerShell(ps);
-    const users = out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    const users = out
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((l) => l.includes("|"))
+      .map((l) => {
+        const [n, sid] = l.split("|");
+        return { name: n, sid };
+      });
     if (!users.length) return results;
     let bridged = false;
     const bridge = async () => {
@@ -546,7 +553,7 @@ async function purgeExtraAccounts(keep: string): Promise<string[]> {
         log("Administrator built-in dinyalakan sementara sebagai jembatan penghapusan.");
       }
     };
-    for (const u of users) {
+    for (const { name: u, sid } of users) {
       // Hapus instant: putus dulu SEMUA session akun ini (RDP/console) sebelum hapus,
       // supaya Windows tidak menolak karena "sedang di gunakan".
       await endUserSessions(u);
@@ -564,7 +571,8 @@ async function purgeExtraAccounts(keep: string): Promise<string[]> {
         d = po.includes("removed") ? { ok: true, out: "remove-localuser ok" } : { ok: false, out: po };
       }
       if (d.ok || notFoundMsg(d.out)) {
-        const line = `hapus ${u}`;
+        const profOk = await removeProfile(sid, u);
+        const line = profOk ? `hapus ${u} + profile` : `hapus ${u} (profile gagal dihapus)`;
         results.push(line);
         log(`purge akun lama: ${line}`);
       } else {
@@ -613,6 +621,21 @@ async function addToGroup(username: string, sid: string, fallbackGroup: string) 
 
 async function allowRdp(username: string) {
   await addToGroup(username, "S-1-5-32-555", "Remote Desktop Users");
+}
+
+async function removeProfile(sid: string, name: string): Promise<boolean> {
+  // Hapus folder profil (mis. C:\Users\<user>) milik akun yang baru dihapus.
+  // Lewat Win32_UserProfile agar aman walau Users berada di drive non-C.
+  const safeSid = sid.replace(/[^0-9-]/g, "");
+  if (!safeSid) return false;
+  for (let i = 0; i < 4; i++) {
+    const po = await runPowerShell(
+      `$p = Get-CimInstance Win32_UserProfile -Filter "SID='${safeSid}'" -ErrorAction SilentlyContinue; if ($p) { try { Remove-Item -LiteralPath $p.LocalPath -Recurse -Force -ErrorAction Stop -Confirm:$false; Remove-CimInstance -InputObject $p -ErrorAction SilentlyContinue; Write-Output 'removed' } catch { Write-Output $_.Exception.Message } } else { Write-Output 'removed' }`
+    );
+    if (po.includes("removed")) return true;
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  return false;
 }
 
 async function makeAdmin(username: string) {
