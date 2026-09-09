@@ -29,7 +29,7 @@ async function nextCode(): Promise<string> {
 export const pcRoutes = new Elysia()
   .get("/api/public/pcs", async () => {
     const rows = await all(
-      `SELECT id, code, name, location, city, cpu, gpu, motherboard, hw_json, ram_gb, storage_gb, storage_type, os, rdp_port, status, price_hourly, price_daily, price_weekly, price_monthly, description, is_bare_metal FROM pcs WHERE is_active=true ORDER BY code ASC`
+      `SELECT id, code, name, location, city, cpu, gpu, motherboard, hw_json, ram_gb, storage_gb, storage_type, os, rdp_port, status, price_hourly, price_daily, price_weekly, price_monthly, description, is_bare_metal, net_download_mbps, net_upload_mbps, net_ping_ms, net_tested_at FROM pcs WHERE is_active=true ORDER BY code ASC`
     );
     return { ok: true, data: rows };
   })
