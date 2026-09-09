@@ -405,6 +405,31 @@ async function runExe(argsLocal: string[]): Promise<{ ok: boolean; out: string }
   }
 }
 
+// Cek apakah instance agent lain sudah berjalan (hindari proses ganda).
+async function anotherInstanceRunning(): Promise<boolean> {
+  try {
+    const base = (process.execPath || "rentalrdp-agent").split(/[\\/]/).pop()!.replace(/\.exe$/i, "");
+    const r = await sh(`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Process -Name '${base}' -ErrorAction SilentlyContinue | Measure-Object).Count"`);
+    const n = parseInt((r.out.match(/\d+/) || ["0"])[0], 10);
+    return n > 1;
+  } catch {
+    return false;
+  }
+}
+
+// Jalankan perintah schtasks lewat UAC (muncul pop-up sekali) — butuh admin.
+async function schtasksElevated(cmd: string) {
+  try {
+    const psFile = join(EXE_DIR, ".rentalrdp-install.ps1");
+    writeFileSync(psFile, cmd);
+    await runExe(["powershell", "-NoProfile", "-Command", `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"${psFile}"' -WindowStyle Hidden`]);
+    await Bun.sleep(2500); // beri waktu UAC + pembuatan task
+  } catch {
+  } finally {
+    try { unlinkSync(join(EXE_DIR, ".rentalrdp-install.ps1")); } catch {}
+  }
+}
+
 // Sembunyikan console window saat mode --silent.
 function hideConsole() {
   try {
@@ -421,50 +446,54 @@ function hideConsole() {
 async function createWindowsAutoStart(): Promise<boolean> {
   const exePath = process.execPath;
   const tr = `"${exePath}" --silent`;
-  // A. Task Scheduler saat BOOT (SYSTEM) — jalan sebelum ada yang login, tahan matilistrik. Butuh admin.
-  let bootOk = (await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", tr, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"])).ok;
-  if (!bootOk && process.env.RENTALRDP_NO_ELEVATE !== "1") {
-    // A2. Retry lewat UAC (muncul pop-up sekali) supaya boot-start tetap bisa tanpa pencet-pencet lain.
-    try {
-      const psFile = join(EXE_DIR, ".rentalrdp-install.ps1");
-      writeFileSync(psFile, `schtasks /create /tn "rentalrdp-agent" /tr "${tr}" /sc onstart /ru SYSTEM /rl highest /f`);
-      await runExe(["powershell", "-NoProfile", "-Command", `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"${psFile}"' -WindowStyle Hidden`]);
-      await Bun.sleep(2500); // beri waktu UAC + pembuatan task
-      bootOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
-    } catch {
-    } finally {
-      try { unlinkSync(join(EXE_DIR, ".rentalrdp-install.ps1")); } catch {}
-    }
+  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
+
+  // 1) Watchdog.bat — restart agent kalau mati (proteksi: penyewa tidak bisa "membunuh" agent).
+  try {
+    writeFileSync(WATCH, `@echo off\r\ntasklist /fi "IMAGENAME eq rentalrdp-agent.exe" | findstr /i "rentalrdp-agent.exe" >nul\r\nif errorlevel 1 start "" /b "%~dp0rentalrdp-agent.exe" --silent\r\n`, "utf8");
+  } catch {}
+
+  // 2) Task BOOT (SYSTEM) — jalan SEBELUM login, session 0 (tak terlihat), dan TIDAK bisa
+  //    di-kill oleh user biasa karena proses berjalan sebagai SYSTEM. Butuh admin (UAC sekali).
+  const hasBoot = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
+  if (!hasBoot && process.env.RENTALRDP_NO_ELEVATE !== "1") {
+    await schtasksElevated(`schtasks /create /tn "rentalrdp-agent" /tr "${tr}" /sc onstart /ru SYSTEM /rl highest /f`);
   }
-  let anyOk = bootOk;
-  if (bootOk) {
-    log("Auto-start OK: jalan saat BOOT (sebelum login) — tahan matilistrik.");
+  const bootOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
+
+  // 3) Watchdog task (SYSTEM) — tiap 1 menit cek agent; kalau mati → langsung nyalakan lagi.
+  const hasWatch = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent-watchdog"])).ok;
+  if (!hasWatch && process.env.RENTALRDP_NO_ELEVATE !== "1") {
+    await schtasksElevated(`schtasks /create /tn "rentalrdp-agent-watchdog" /tr "\"${WATCH}\"" /sc minute /mo 1 /ru SYSTEM /rl highest /f`);
   }
-  // B. Cadangan (penting bila tanpa admin): Task saat login + Registry Run key.
-  const logonOk = (await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", tr, "/sc", "onlogon", "/f"])).ok;
-  if (logonOk) anyOk = true;
-  // C. Beri informasi status ke user.
-  if (!anyOk) {
-    log("Auto-start: jalan saat login (Registry Run key).");
-    log("Tips: sekali jalankan sebagai Administrator biar juga jalan SAAT BOOT walau belum login.");
-  }
-  // D. Registry Run key (HKCU) — mekanisme paling pasti tanpa admin.
-  const reg = await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/t", "REG_SZ", "/d", tr, "/f"]);
-  if (!reg.ok) {
-    log("⚠️ Gagal tulis registry auto-start: " + reg.out.slice(0, 120));
-    return anyOk;
+  const watchOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent-watchdog"])).ok;
+
+  if (bootOk) log("Auto-start OK: jalan saat BOOT (SYSTEM, background, anti-stop).");
+  if (watchOk) log("Watchdog OK: auto-restart tiap 1 menit kalau agent mati.");
+
+  // 4) Fallback TANPA admin: task saat login + Registry Run key (masih ada flash terminal & hanya untuk user yang sama).
+  if (!bootOk) {
+    const logonOk = (await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", tr, "/sc", "onlogon", "/f"])).ok;
+    if (logonOk) log("Auto-start: jalan saat login (fallback, tanpa UAC).");
+    const reg = await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/t", "REG_SZ", "/d", tr, "/f"]);
+    if (reg.ok && !logonOk) log("Auto-start: jalan saat login (Registry Run key - fallback).");
+    if (!reg.ok && !logonOk) log("⚠️ Gagal semua auto-start. Jalankan SEKALI sebagai Administrator.");
+    return logonOk || reg.ok;
   }
   return true;
 }
 
 async function autoInstall() {
-  // Sudah terpasang sebelumnya → jangan pasang lagi (hindari pop-up UAC tiap boot).
-  if (loadConfig().autostart) return;
-  let ok = false;
   if (IS_WIN) {
-    ok = await createWindowsAutoStart();
-  } else {
-    const service = `[Unit]
+    // Sudah terpasang dengan task BOOT → jangan pasang ulang (hindari pop-up UAC tiap boot).
+    const hasBoot = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
+    if (loadConfig().autostart && hasBoot) return;
+    const ok = await createWindowsAutoStart();
+    if (ok) setConfigFlag("autostart", true);
+    return;
+  }
+  if (loadConfig().autostart) return;
+  const service = `[Unit]
 Description=RentalRDP Agent
 After=network.target
 
@@ -475,22 +504,23 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target`;
-    try {
-      writeFileSync("/etc/systemd/system/rentalrdp-agent.service", service);
-      ok = (await sh("systemctl daemon-reload && systemctl enable --now rentalrdp-agent")).ok;
-      log(ok ? "Installed & started sebagai systemd service." : "Gagal start service. Jalankan dengan sudo.");
-    } catch {
-      log("Gagal install systemd. Coba jalankan dengan sudo.");
-    }
+  try {
+    writeFileSync("/etc/systemd/system/rentalrdp-agent.service", service);
+    const ok = (await sh("systemctl daemon-reload && systemctl enable --now rentalrdp-agent")).ok;
+    log(ok ? "Installed & started sebagai systemd service." : "Gagal start service. Jalankan dengan sudo.");
+    if (ok) setConfigFlag("autostart", true);
+  } catch {
+    log("Gagal install systemd. Coba jalankan dengan sudo.");
   }
-  if (ok) setConfigFlag("autostart", true);
 }
 
 async function autoUninstall() {
   if (IS_WIN) {
     const r1 = await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent", "/f"]);
-    const r2 = await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
-    log(r1.ok || r2.ok ? "Auto-start dihapus (Task + Registry)." : "Belum ada auto-start (atau butuh Administrator).");
+    const r2 = await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent-watchdog", "/f"]);
+    const r3 = await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
+    try { unlinkSync(join(EXE_DIR, "rentalrdp-agent-watchdog.bat")); } catch {}
+    log(r1.ok || r2.ok || r3.ok ? "Auto-start dihapus (Boot task + Watchdog + Registry)." : "Belum ada auto-start (atau butuh Administrator).");
   } else {
     const r = await sh("systemctl disable --now rentalrdp-agent && rm -f /etc/systemd/system/rentalrdp-agent.service && systemctl daemon-reload");
     log(r.ok ? "Systemd service dihapus." : "Gagal hapus systemd service. Jalankan dengan sudo.");
@@ -512,6 +542,13 @@ if (args.includes("--uninstall") || args.includes("-u")) {
 
 const SILENT = args.includes("--silent") || args.includes("-s");
 if (SILENT) hideConsole();
+
+// Anti ganda: kalau instance lain sudah berjalan (mis. dari auto-start), instance baru keluar.
+if (IS_WIN && (await anotherInstanceRunning())) {
+  console.log("Agent sudah berjalan. Instance baru ditutup (dua instance tidak diizinkan).");
+  process.exit(0);
+}
+
 const cfg = SILENT ? loadConfig() : await wizard();
 
 if (!cfg.api || !cfg.token) {
