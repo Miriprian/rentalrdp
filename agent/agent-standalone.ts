@@ -644,9 +644,12 @@ async function ensureInstalled(): Promise<boolean> {
   if (process.argv.slice(2).includes("--uninstall") || process.argv.slice(2).includes("-u")) return false;
   try {
     mkdirSync(INSTALL_DIR, { recursive: true });
-    // Selalu pakai bat (bukan spawn langsung): taskkill membereskan agent lama ATAU instance
-    // diri sendiri, lalu start dari ProgramData dengan window NORMAL (wizard terlihat), dan
-    // tidak ada race double-instance karena proses lama sudah mati duluan.
+    // Hentikan agent LAIN dulu (exclude PID diri sendiri). Bat tidak boleh taskkill,
+    // supaya bat tidak pernah membunuh proses induknya sendiri (pohon prosesnya).
+    log("Menghentikan agent lain (jika ada)...");
+    const name = ASSET_NAME.replace(/\.exe$/i, "");
+    const ps = `Get-Process -Name '${name}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`;
+    await runExe(["powershell", "-NoProfile", "-Command", ps]);
     const argLine = process.argv.slice(2).map((a) => " '" + a.replace(/'/g, "''") + "'").join(" ");
     const LOG = join(INSTALL_DIR, ".relocate.log");
     const cfgLine =
@@ -658,13 +661,12 @@ async function ensureInstalled(): Promise<boolean> {
       `@echo off` +
       `\r\nsetlocal` +
       `\r\nset "LOG=${LOG}"` +
-      `\r\necho [%date% %time%] ==== relocate start ==== >> "%LOG%"` +
+      `\r\necho [%date% %time%] ==== bat started ==== >> "%LOG%"` +
       `\r\necho SRC=${process.execPath} >> "%LOG%"` +
       `\r\necho DST=${INSTALL_PATH} >> "%LOG%"` +
       `\r\nset /a attempt=0` +
       `\r\n:again` +
       `\r\nset /a attempt+=1` +
-      `\r\ntaskkill /f /t /im ${ASSET_NAME} >> "%LOG%" 2>&1` +
       `\r\nping -n 4 127.0.0.1 >nul 2>&1` +
       `\r\ncopy /y "${process.execPath}" "${INSTALL_PATH}" >> "%LOG%" 2>&1` +
       cfgLine +
