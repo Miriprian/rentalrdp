@@ -2,7 +2,7 @@
 let tab = "orders";
 
 function renderTabs() {
-  const tabs = [["orders", t("tab_incoming")], ["pcs", t("tab_pcs")], ["rentals", t("tab_active_rentals")], ["users", t("tab_users")], ["vouchers", t("tab_vouchers")], ["settings", t("tab_settings")], ["audit", t("tab_audit")], ["akun", t("tab_akun")]];
+  const tabs = [["orders", t("tab_incoming")], ["pcs", t("tab_pcs")], ["rentals", t("tab_active_rentals")], ["rentacc", t("tab_rent_acc")], ["users", t("tab_users")], ["vouchers", t("tab_vouchers")], ["settings", t("tab_settings")], ["audit", t("tab_audit")], ["akun", t("tab_akun")]];
   if (!tabs.find((t) => t[0] === tab)) tab = "orders";
   $("#dashTabs").innerHTML = tabs.map(([k, l]) => `<button onclick="setTab('${k}')" class="px-4 py-2 rounded-lg ${tab === k ? "bg-emerald-600 font-bold" : "bg-slate-800"}">${l}</button>`).join("");
 }
@@ -15,6 +15,7 @@ async function renderBody() {
     if (tab === "orders") b.innerHTML = await adminOrdersHtml();
     else if (tab === "pcs") b.innerHTML = await adminPcsHtml();
     else if (tab === "rentals") b.innerHTML = await adminRentalsHtml();
+    else if (tab === "rentacc") b.innerHTML = await adminRentAccHtml();
     else if (tab === "users") b.innerHTML = await adminUsersHtml();
     else if (tab === "vouchers") b.innerHTML = await adminVouchersHtml();
     else if (tab === "settings") b.innerHTML = await adminSettingsHtml();
@@ -186,7 +187,7 @@ window.delPc = async function (id) {
 window.mkRentUser = async function (id) {
   const r = await api(`/api/admin/pcs/${id}/rent-user`, { method: "POST" });
   if (r.ok && r.username) {
-    alert(`${t("mk_ok")}\n\nUser : ${r.username}\nPass : ${r.password}\n\n${t("mk_note")}`);
+    alert(`${t("mk_ok")}\n\nUser : ${r.username}\nPass : ${r.password}\n\n${t("mk_note")}\n${t("mk_saved")}`);
     toast(t("mk_sent"));
   } else toast(r.message || "Gagal");
   renderBody();
@@ -211,6 +212,24 @@ window.terminateRental = async function (id) {
   if (!confirm(t("confirm_terminate"))) return;
   const r = await api(`/api/admin/rentals/${id}/terminate`, { method: "POST" });
   toast(r.message || "OK"); renderBody();
+};
+
+async function adminRentAccHtml() {
+  const r = await api("/api/admin/rent-accounts");
+  const rows = r.data || [];
+  return `<div class="card rounded-xl p-4 mb-3 text-sm">${t("rent_acc_hint")}</div>
+  <div class="grid gap-2">` + (rows.length ? rows.map((a) => `
+    <div class="card rounded-xl p-4 text-sm">
+      <div class="flex flex-wrap gap-2 items-center"><b class="mono text-emerald-300">${esc(a.username)}</b>
+        <span class="text-xs px-2 py-1 rounded ${a.status === "active" ? "bg-emerald-700" : "bg-red-800"}">${esc(a.status)}</span>
+        <span class="ml-auto text-xs text-slate-400">${esc(a.pc_code)} • ${new Date(a.created_at).toLocaleString("id-ID")}</span>
+      </div>
+      <div class="mono mt-1 text-slate-200">${t("pass")}: ${esc(a.password)}</div>
+      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy")}</button>
+    </div>`).join("") : `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("rent_acc_empty")}</div>`) + `</div>`;
+}
+window.copyAcc = function (u, p) {
+  navigator.clipboard?.writeText(`User: ${u}\nPass: ${p}`).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), `${u} / ${p}`));
 };
 
 async function adminUsersHtml() {

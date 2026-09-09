@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { one, all, q } from "../db/query";
 import { currentUser, isAdmin } from "../lib/guard";
 import { audit, clientIp } from "../lib/utils";
-import { sha256, randomToken } from "../lib/crypto";
+import { sha256, randomToken, encryptText, decryptText } from "../lib/crypto";
 import { randomInt } from "node:crypto";
 
 function denied(set: { status?: number }) {
@@ -189,8 +189,13 @@ export const pcRoutes = new Elysia()
       `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','create_user',$3,'pending')`,
       [crypto.randomUUID(), params.id, JSON.stringify({ username, password })]
     );
+    // Catat akun buatan manual supaya bisa dicek lagi di dashboard admin (kalau lupa copy).
+    await q(
+      `INSERT INTO rent_accounts (id, pc_id, pc_code, username, password_enc, status) VALUES ($1,$2,$3,$4,$5,'active')`,
+      [crypto.randomUUID(), params.id, pc.code, username, await encryptText(password)]
+    );
     await audit("pc.manual_rent_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
-    return { ok: true, message: `Tugas create_user dikirim ke agent (${username}).`, username, password };
+    return { ok: true, message: `Tugas create_user dikirim ke agent (${username}).`, username, password, saved: true };
   })
   .post(
     "/api/admin/pcs/:id/delete-user",
@@ -212,11 +217,27 @@ export const pcRoutes = new Elysia()
         `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','delete_user',$3,'pending')`,
         [crypto.randomUUID(), params.id, JSON.stringify({ username })]
       );
+      await q(`UPDATE rent_accounts SET status='deleted', deleted_at=NOW() WHERE pc_id=$1 AND username=$2`, [params.id, username]);
       await audit("pc.manual_del_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
       return { ok: true, message: `Tugas delete_user dikirim ke agent (${username}).` };
     },
     { body: t.Object({ username: t.Optional(t.String()) }) }
   )
+  .get("/api/admin/rent-accounts", async ({ request, set }) => {
+    // Daftar akun RDP (manual) terbaru — bisa dicek kalau admin lupa copy saat bikin.
+    const me = await currentUser(request);
+    if (!me || !isAdmin(me.role)) return denied(set);
+    const rows = await all(`SELECT * FROM rent_accounts ORDER BY created_at DESC LIMIT 200`);
+    for (const r of rows as { password_enc: string }[]) {
+      try {
+        (r as { password: string }).password = await decryptText(r.password_enc);
+      } catch {
+        (r as { password: string }).password = "";
+      }
+      delete (r as { password_enc: string }).password_enc;
+    }
+    return { ok: true, data: rows };
+  })
   .post("/api/pcs/:id/regen-token", async ({ params, request, set }) => {
     const me = await currentUser(request);
     if (!me || !isAdmin(me.role)) return denied(set);
