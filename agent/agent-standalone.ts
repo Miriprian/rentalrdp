@@ -18,6 +18,12 @@ import { hostname } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
 
 // ─── CONFIG ───────────────────────────────────────────────────
+// Versi di-inject saat build (--define METADATA_VERSION="..."). Kalau build tanpa
+// --define (mis. dev), VERSION otomatis "dev".
+declare const METADATA_VERSION: string | undefined;
+const VERSION = (typeof METADATA_VERSION !== "undefined" && METADATA_VERSION) || "dev";
+const REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Miriprian/rentalrdp/main/agent/AGENT_VERSION";
+
 const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
 const CONFIG_FILE = existsSync(join(EXE_DIR, "config.json"))
   ? join(EXE_DIR, "config.json")
@@ -127,12 +133,7 @@ async function httpText(url: string, timeoutMs = 20000): Promise<string | null> 
   }
 }
 
-function tagNumber(tag: string): number {
-  const m = String(tag || "").match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : 0;
-}
-
-async function latestRelease(): Promise<{ tag: string; num: number; url: string } | null> {
+async function latestRelease(): Promise<{ tag: string; url: string } | null> {
   try {
     const txt = await httpText(API_LATEST_URL);
     if (!txt) return null;
@@ -140,20 +141,31 @@ async function latestRelease(): Promise<{ tag: string; num: number; url: string 
     const tag = String(j.tag_name || "");
     const asset = (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME);
     if (!tag || !asset) return null;
-    return { tag, num: tagNumber(tag), url: asset.browser_download_url };
+    return { tag, url: asset.browser_download_url };
   } catch {
     return null;
   }
 }
 
-async function applyUpdate(cfg: Config, rel: { tag: string; url: string }): Promise<boolean> {
+// Bandingkan versi "1", "1.2", "1.2.3" — numerik per bagian.
+function cmpVersion(a: string, b: string): number {
+  const pa = String(a || "0").split(".").map((x) => parseInt(x, 10) || 0);
+  const pb = String(b || "0").split(".").map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
   const exePath = process.execPath;
   const tmpDir = join(EXE_DIR, ".update");
   const tmpNew = join(tmpDir, ASSET_NAME);
   const updater = join(tmpDir, "apply-update.bat");
   try {
     mkdirSync(tmpDir, { recursive: true });
-    log(`Mengunduh ${rel.tag} dari GitHub...`);
+    log("Mengunduh versi terbaru dari GitHub...");
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 120000);
     const r = await fetch(rel.url, { signal: ctrl.signal });
@@ -170,7 +182,6 @@ async function applyUpdate(cfg: Config, rel: { tag: string; url: string }): Prom
       `start "" "${exePath}" --silent\r\n` +
       `del /q "%~f0" >nul 2>&1\r\n`;
     writeFileSync(updater, bat, "utf8");
-    try { saveConfig({ ...cfg, version: rel.tag }); } catch {}
     Bun.spawn(["cmd", "/c", `"${updater}"`], { windowsHide: true });
     return true;
   } catch (e) {
@@ -181,19 +192,23 @@ async function applyUpdate(cfg: Config, rel: { tag: string; url: string }): Prom
 }
 
 async function checkAndUpdate(cfg: Config, force = false): Promise<boolean> {
-  log("Cek update dari GitHub Releases...");
-  const rel = await latestRelease();
-  if (!rel) {
+  log("Cek update dari GitHub...");
+  if (VERSION === "dev") {
+    log("Build ini 'dev' (tanpa versi). Skip cek update.");
+    return false;
+  }
+  const [rel, remoteText] = await Promise.all([latestRelease(), httpText(REMOTE_VERSION_URL)]);
+  const remote = (remoteText || "").trim();
+  if (!rel || !remote) {
     log("Cek update gagal. Pastikan repo GitHub & Releases-nya PUBLIC (tanpa login).");
     return false;
   }
-  const local = cfg.version || "0";
-  if (!force && local === rel.tag) {
-    log(`Agent sudah versi terbaru: ${rel.tag}.`);
+  if (!force && cmpVersion(VERSION, remote) >= 0) {
+    log(`Agent sudah versi terbaru: v${VERSION}.`);
     return false;
   }
-  log(`Versi saat ini : ${local === "0" ? "(belum tercatat)" : local}`);
-  log(`Versi terbaru  : ${rel.tag}`);
+  log(`Versi saat ini : v${VERSION}`);
+  log(`Versi terbaru  : v${remote}`);
   const ans = await prompt("  Update sekarang? (Y/n): ");
   if (ans?.toLowerCase() === "n") return false;
   return applyUpdate(cfg, rel);
@@ -716,6 +731,7 @@ async function interactiveMenu(): Promise<void> {
 ┌──────────────────────────────────────────────────────────┐
 │            RentalRDP Agent — INSTALLER                   │
 ├──────────────────────────────────────────────────────────┤
+│  Versi         : v${VERSION}
 │  Berjalan dari : ${process.execPath}
 │  Lokasi resmi  : ${INSTALL_PATH}
 │  Status        : ${atInstall ? "terpasang di lokasi resmi" : "BELUM terpasang"}`
@@ -795,6 +811,10 @@ const atInstall = process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase();
 
 // Instalasi interaktif: dari folder mana pun (mis. Downloads) tanpa config → MENU.
 // Atau paksa dengan --menu. Mode silent/--install/--uninstall TIDAK masuk ke menu.
+if (args.includes("--version") || args.includes("-v")) {
+  console.log(`rentalrdp-agent v${VERSION}`);
+  process.exit(0);
+}
 if (
   !SILENT &&
   !args.includes("--install") &&
@@ -856,7 +876,8 @@ if (!SILENT) await autoInstall();
 console.log(`
 ╔══════════════════════════════════════════════════╗
 ║  rentalrdp.com — Bare Metal Agent               ║
-║  Host : ${HOSTNAME.padEnd(39)}║
+║  Versi : v${VERSION.padEnd(39).slice(0, 39)}║
+║  Host : ${HOSTNAME.padEnd(45).slice(0, 39)}║
 ║  API  : ${cfg.api.slice(0, 39).padEnd(39)}║
 ║  Mode : ${IS_WIN ? "Windows" : "Linux"} ${(IS_WIN ? "(RDP)" : "(SSH)").padEnd(32)}║
 ║  Poll : setiap ${String(cfg.interval) + " detik".padEnd(30)}║

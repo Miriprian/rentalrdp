@@ -19,23 +19,38 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Baca versi dari agent/AGENT_VERSION
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content agent/AGENT_VERSION | Select-Object -First 1).Trim()
+          Write-Output "VERSION=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Compile agent -> .exe Windows
-        run: bun build --compile agent/agent-standalone.ts --outfile agent/rentalrdp-agent.exe
+        shell: pwsh
+        run: |
+          $def = 'METADATA_VERSION=' + ($env:VER | ConvertTo-Json -Compress)
+          Write-Output "define: $def"
+          bun build --compile agent/agent-standalone.ts --outfile agent/rentalrdp-agent.exe --define $def
+        env:
+          VER: ${{ steps.ver.outputs.VERSION }}
 
       - name: Simpan .exe sebagai artifact (backup 90 hari)
         uses: actions/upload-artifact@v4
         with:
-          name: rentalrdp-agent-windows-${{ github.run_number }}
+          name: rentalrdp-agent-windows
           path: agent/rentalrdp-agent.exe
 
       - name: Publikasi ke halaman Releases
         uses: softprops/action-gh-release@v2
         with:
           files: agent/rentalrdp-agent.exe
-          tag_name: agent-v${{ github.run_number }}
-          name: Agent Windows v${{ github.run_number }}
+          tag_name: agent-${{ github.sha }}
+          name: Agent
           body: |
-            Agent terbaru untuk PC RDP.
+            Agent terbaru (versi **v${{ steps.ver.outputs.VERSION }}**, rilis dari commit `${{ github.sha }}`).
+
+            Untuk lacak versi exe: jalankan `rentalrdp-agent.exe --version` (menampilkan versi yang tertanam di dalam file).
 
             Cara ambil: di bagian **Assets**, klik **rentalrdp-agent.exe** (tab "Show all" kalau tidak terlihat).
           fail_on_unmatched_files: false
