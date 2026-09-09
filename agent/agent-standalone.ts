@@ -632,18 +632,20 @@ if (args.includes("--update")) {
 const SILENT = args.includes("--silent") || args.includes("-s");
 if (SILENT) hideConsole();
 
-// Anti ganda: kalau instance lain sudah berjalan (mis. dari auto-start), instance baru keluar.
-if (IS_WIN && (await anotherInstanceRunning())) {
-  console.log("Agent sudah berjalan. Instance baru ditutup (dua instance tidak diizinkan).");
-  process.exit(0);
-}
-
 // Interaktif & config sudah ada → tawarkan update dari GitHub sebelum jalan normal.
+// (Diizinkan WALAU agent lain masih berjalan — updater akan taskkill + replace + restart sendiri.)
 if (!SILENT) {
   const pre = loadConfig();
   if (pre.api && pre.token) {
     if (await checkAndUpdate(pre)) process.exit(0);
   }
+}
+
+// Anti ganda: kalau agent lain sudah berjalan, instance baru keluar.
+// (Update di atas didahulukan supaya self-update tidak terbentur guard ini.)
+if (IS_WIN && (await anotherInstanceRunning())) {
+  console.log(SILENT ? "Agent sudah berjalan (background). Instance ini ditutup." : "Agent lain masih berjalan; instance ini ditutup (tidak dibuat ganda).");
+  process.exit(0);
 }
 
 const cfg = SILENT ? loadConfig() : await wizard();
