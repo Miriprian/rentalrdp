@@ -10,9 +10,22 @@ import { rentalRoutes } from "./routes/rentals";
 import { adminRoutes } from "./routes/admin";
 import { agentRoutes } from "./routes/agent";
 import { rateLimit } from "./lib/rate-limit";
+import { q } from "./db/query";
 
 assertEnv();
 await initDb();
+
+// Auto-online/offline: PC yang sudah dipasarkan tapi lama tanpa heartbeat
+// (mati listrik / agent crash / internet offline) → status offline otomatis,
+// sehingga tombol sewa mati & order ditolak. Pulih otomatis saat agent kembali.
+const OFFLINE_AFTER_MS = 75_000;
+setInterval(() => {
+  q(`UPDATE pcs SET status='offline'
+     WHERE is_active=true AND status='available'
+       AND last_seen_at IS NOT NULL
+       AND last_seen_at < NOW() - INTERVAL '${OFFLINE_AFTER_MS} milliseconds'`)
+    .catch((e: unknown) => console.error("[auto-offline] gagal:", e));
+}, 20_000);
 
 // APP_KEY otomatis dibuat jika kosong
 if (!env.APP_KEY) {

@@ -39,6 +39,7 @@ function renderPcs() {
         class="mt-4 py-3 rounded-xl font-bold ${p.status === "available" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-800 text-slate-500"}">
         ${p.status === "available" ? t("btn_rent_now") : t("btn_unavailable")}
       </button>
+      ${p.status === "offline" || p.status === "maintenance" ? `<div class="mt-2 text-[11px] text-red-300 font-semibold">${t("pc_unavailable_note")}</div>` : ""}
     </div>`).join("");
 }
 
@@ -77,6 +78,7 @@ function afterAuthGo() {
 $("#btnLogin").onclick = openAuth;
 $("#btnLogout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.me = null; location.reload(); };
 $("#btnRefresh").onclick = loadPublic;
+setInterval(loadPublic, 30_000);
 $("#tabLogin").onclick = () => { $("#loginForm").classList.remove("hidden"); $("#regForm").classList.add("hidden"); $("#tabLogin").className = "py-2 rounded-lg bg-emerald-600 font-bold"; $("#tabReg").className = "py-2 rounded-lg bg-slate-800"; };
 $("#tabReg").onclick = () => { $("#regForm").classList.remove("hidden"); $("#loginForm").classList.add("hidden"); $("#tabReg").className = "py-2 rounded-lg bg-emerald-600 font-bold"; $("#tabLogin").className = "py-2 rounded-lg bg-slate-800"; };
 $("#doLogin").onclick = async () => {

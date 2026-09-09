@@ -26,7 +26,8 @@ export const agentRoutes = new Elysia()
     // sampai admin klik "Pasarkan" (supaya katalog publik hanya untuk PC siap sewa).
     const firstConnect = !pc.last_seen_at;
     const sets: string[] = ["last_seen_at=NOW()", "updated_at=NOW()"];
-    if (firstConnect && pc.status === "offline") sets.push("status='available'");
+    // Agent hidup lagi → PC online lagi (sebelumnya di-auto-offline karena gagal heartbeat).
+    if (firstConnect || pc.status === "offline") sets.push("status='available'");
     // Auto-update spek REAL dari agent (hanya isi yang bukan kosong)
     const params: unknown[] = [];
     const stringMap: Record<string, unknown> = {
