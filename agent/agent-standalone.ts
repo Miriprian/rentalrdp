@@ -12,10 +12,10 @@
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync, readdirSync } from "node:fs";
+import { join, dirname, basename } from "node:path";
 import { connect } from "node:net";
-import { hostname, tmpdir, networkInterfaces } from "node:os";
+import { hostname, networkInterfaces } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
 
 // ─── CONFIG ───────────────────────────────────────────────────
@@ -162,24 +162,18 @@ function cmpVersion(a: string, b: string): number {
   return 0;
 }
 
-async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
-  const oldPath = process.execPath;
-  // Nama file baru = nama asset versi terbaru (mis. windows-rentalrdp-agent-v9.exe),
-  // BUKAN nama lama — hasil update selalu pakai nama versi terbaru.
+// Update SIMPLE (sesuai permintaan): hanya mengunduh exe versi terbaru ke folder yang sama
+// dengan nama finalnya (mis. windows-rentalrdp-agent-v12.exe). TIDAK membunuh proses,
+// TIDAK menjalankan batch, TIDAK auto-restart.
+// 1) Pilih menu 2 → file baru terunduh di samping file lama.
+// 2) Tutup terminal, jalankan manual exe yang baru.
+// 3) Di agent baru pilih menu 1 → agent otomatis menghapus exe versi lama di folder yang sama.
+async function downloadUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
   const newName = decodeURIComponent(rel.url.split("/").pop() || AGENT_EXE_NAME);
   const newPath = join(EXE_DIR, newName);
-  const oldName = AGENT_EXE_NAME;
-  // Staging exe baru di folder yang SAMA dengan exe (newPath + ".new") — BUKAN folder .update.
-  // Batch updater file tersendiri di %TEMP% (tidak menyatu dengan exe). Alur batch:
-  // kill agent → tunggu benar-benar mati → copy+dengan RETRY (lebih tahan dari 'move'
-  // yang gagal saat file di-lock AV) → verifikasi → hapus exe lama → start versi baru → self-delete.
-  // Semua langkah dicatat ke EXE_DIR\rentalrdp-update.log biar kalau gagal ketahuan kenapa.
-  const staging = newPath + ".new";
-  const updater = join(tmpdir(), "rentalrdp-apply-update.bat");
-  const logFile = join(EXE_DIR, "rentalrdp-update.log");
   try {
     try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
-    try { rmSync(staging, { force: true }); } catch {}
+    try { rmSync(process.execPath + ".new", { force: true }); } catch {}
     log("Mengunduh versi terbaru dari GitHub...");
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 120000);
@@ -187,40 +181,80 @@ async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> 
     clearTimeout(t);
     if (!r.ok) throw new Error("unduh gagal (HTTP " + r.status + ")");
     const buf = await r.arrayBuffer();
-    writeFileSync(staging, Buffer.from(buf));
-    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti ke ${newName} & restart otomatis...`);
-    const bat =
-      `@echo off\r\nsetlocal\r\n` +
-      `echo [%date% %time%] mulai update %oldName% -^> ${newName} >> "${logFile}"\r\n` +
-      `taskkill /f /im ${oldName} >nul 2>&1\r\n` +
-      `:wait\r\n` +
-      `taskkill /f /im ${oldName} >nul 2>&1\r\n` +
-      `tasklist /fi "imagename eq ${oldName}" 2>nul | find /i "${oldName}" >nul\r\n` +
-      `if not errorlevel 1 (ping -n 2 127.0.0.1 >nul & goto wait)\r\n` +
-      `set N=0\r\n` +
-      `:cp\r\n` +
-      `copy /y "${staging}" "${newPath}" >> "${logFile}" 2>&1\r\n` +
-      `if not errorlevel 1 goto copied\r\n` +
-      `set /a N+=1\r\n` +
-      `if %N% LSS 20 (ping -n 2 127.0.0.1 >nul & goto cp)\r\n` +
-      `goto fail\r\n` +
-      `:copied\r\n` +
-      `del /q "${staging}" >nul 2>&1\r\n` +
-      `if /i not "${oldPath}"=="${newPath}" del /q "${oldPath}" >nul 2>&1\r\n` +
-      `echo [%date% %time%] selesai, start ${newName} >> "${logFile}"\r\n` +
-      `start "" "${newPath}" --silent\r\n` +
-      `del /q "%~f0" >nul 2>&1\r\n` +
-      `exit /b 0\r\n` +
-      `:fail\r\n` +
-      `echo [%date% %time%] GAGAL copy exe baru (file mungkin terkunci / anti-virus). Unduh manual dari GitHub Releases. >> "${logFile}"\r\n` +
-      `del /q "%~f0" >nul 2>&1\r\n`;
-    writeFileSync(updater, bat, "utf8");
-    Bun.spawn(["cmd", "/c", `"${updater}"`], { windowsHide: true });
+    writeFileSync(newPath, Buffer.from(buf));
+    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB → ${newName}`);
+    console.log(`
+  ------------------------------------------------------------------
+   UPDATE SELESAI (manual):
+   1) Tutup terminal ini.
+   2) Jalankan file baru: ${newName}
+   3) Di agent baru pilih menu 1 — exe versi lama di folder ini akan dihapus otomatis.
+  ------------------------------------------------------------------
+`);
     return true;
   } catch (e) {
     log("Update gagal: " + String(e).slice(0, 200));
     log("Coba lagi, atau unduh manual dari halaman Releases GitHub.");
     return false;
+  }
+}
+
+// Exe yang masih dirujuk oleh boot task / HKCU Run / watchdog.bat — jangan dihapus.
+async function referencedAgentRefs(): Promise<string[]> {
+  const refs: string[] = [];
+  try {
+    const xml = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent", "/xml"])).out;
+    if (xml) refs.push(xml.toLowerCase());
+  } catch {}
+  try {
+    const reg = (await runExe(["reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent"])).out;
+    if (reg) refs.push(reg.toLowerCase());
+  } catch {}
+  const wd = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
+  try { if (existsSync(wd)) refs.push(readFileSync(wd, "utf8").toLowerCase()); } catch {}
+  return refs;
+}
+
+// Hapus exe agent versi LAMA di folder yang sama, sisakan versi sekarang (dan yang lebih baru).
+// Sebelum dihapus, proses yang masih menjalankan file itu (mis. instance boot task / watchdog)
+// dibunuh dulu — itu penyebab "masih di gunakan" sehingga file tak bisa dihapus manual.
+async function cleanupOldAgents() {
+  try {
+    const curBase = basename(process.execPath).toLowerCase();
+    const files = readdirSync(EXE_DIR).filter((f) => /^windows-rentalrdp-agent-v\d+\.exe$/i.test(f));
+    const refs = IS_WIN ? await referencedAgentRefs() : [];
+    const isReferenced = (f: string) => refs.some((r) => r.includes(f.toLowerCase()));
+    for (const f of files) {
+      if (f.toLowerCase() === curBase) continue;
+      const m = f.match(/v(\d+)\.exe$/i);
+      if (!m) continue;
+      if (Number(m[1]) > Number(VERSION)) continue;
+      // Jika boot task / HKCU Run / watchdog MASIH menunjuk exe ini (mis. gagal update saat
+      // bukan admin), jangan hapus — kalau dihapus auto-start akan rusak.
+      if (isReferenced(f)) {
+        log(`Lewati ${f} — masih dirujuk auto-start (update dulu via menu 1 sebagai Administrator).`);
+        continue;
+      }
+      const full = join(EXE_DIR, f);
+      let first = true;
+      for (let i = 0; i < 12 && existsSync(full); i++) {
+        if (first) { await runExe(["taskkill", "/f", "/im", f]); first = false; }
+        await runExe(["taskkill", "/f", "/im", f]);
+        Bun.sleepSync(400);
+        try { rmSync(full, { force: true }); } catch {}
+      }
+      if (existsSync(full)) {
+        log(`Hapus ${f} GAGAL (masih di pakai) — coba hapus manual setelah restart.`);
+      } else {
+        log(`Versi lama dihapus: ${f}`);
+      }
+    }
+    try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
+    for (const f of readdirSync(EXE_DIR).filter((x) => x.endsWith(".new"))) {
+      try { rmSync(join(EXE_DIR, f), { force: true }); } catch {}
+    }
+  } catch (e) {
+    log("Bersihkan exe lama gagal: " + String(e).slice(0, 120));
   }
 }
 
@@ -244,7 +278,7 @@ async function checkAndUpdate(cfg: Config, force = false): Promise<boolean> {
   log(`Versi terbaru  : v${remote}`);
   const ans = await prompt("  Update sekarang? (Y/n): ");
   if (ans?.toLowerCase() === "n") return false;
-  return applyUpdate(cfg, rel);
+  return downloadUpdate(cfg, rel);
 }
 
 // ─── DETEKSI SPEK REAL (dikirim ke server) ──────────────────
@@ -974,10 +1008,9 @@ async function syncAutoStartPath() {
 
 // ─── MENU INSTALLER INTERAKTIF ───────────────────────────────
 // Menu minimal; console TETAP TERBUKA sampai user memilih Keluar.
-// Agent HANYA bisa berhenti otomatis saat proses update (applyUpdate men-taskkill
-// semua instance lalu restart versi baru --silent). Tidak ada opsi stop / uninstall /
-// reset — supaya penyewa/hacker tak bisa mematikan agent dan memakai RDP gratis
-// tanpa terhitung waktu.
+// Update bersifat MANUAL (menu 2 cuma unduh exe baru; proses lama hanya berhenti
+// saat terminalnya ditutup). Tidak ada opsi stop / uninstall / reset — supaya
+// penyewa/hacker tak bisa mematikan agent dan memakai RDP gratis tanpa terhitung waktu.
 async function interactiveMenu(): Promise<"run" | "exit"> {
   const cfgNow = loadConfig();
   const configured = !!(cfgNow.api && cfgNow.token);
@@ -994,7 +1027,7 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
   while (true) {
     console.log(`
   1)  Install / Ganti Token  (server URL + token + auto-start)
-  2)  Update Agent           (unduh versi terbaru → agent berhenti & restart otomatis)
+  2)  Update Agent           (unduh exe terbaru di folder ini → jalankan manual → menu 1 hapus versi lama)
   3)  Keluar
 `);
     const ans = ((await prompt("  Pilih [1/2/3], Enter = 1 : ")) || "1").trim();
@@ -1006,13 +1039,16 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
           continue;
         }
         await autoInstall();
+        // Pastikan boot task / watchdog menunjuk exe SEKARANG, lalu bersihkan exe versi lama.
+        await syncAutoStartPath();
+        await cleanupOldAgents();
         console.log("");
         const runNow = await prompt("  Jalankan agent sekarang? (Y/n): ");
         if (runNow?.toLowerCase() !== "n") return "run";
         continue;
       }
       case "2": {
-        if (await checkAndUpdate(loadConfig(), true)) return "exit";
+        await checkAndUpdate(loadConfig(), true);
         console.log("");
         continue;
       }
@@ -1046,9 +1082,8 @@ if (args.includes("--install") || args.includes("-i")) {
   process.exit(0);
 }
 
-// Catatan keamanan: tanpa --uninstall. Agent hanya berhenti saat update
-// (applyUpdate men-taskkill & restart). Supaya agent tak bisa dimatikan
-// penyewa/hacker demi RDP gratis.
+// Catatan keamanan: tanpa --uninstall. Agent hanya berhenti manual (tutup terminal atau
+// Ctrl+C di jendelanya). Supaya agent tak bisa dimatikan diam-diam penyewa/hacker demi RDP gratis.
 
 if (args.includes("--update")) {
   await checkAndUpdate(loadConfig(), true);
@@ -1087,4 +1122,7 @@ loop(cfg);
 // Nama file bisa berubah saat update (rename ke versi terbaru) → samakan lagi
 // boot task / watchdog / HKCU Run biar tetap menunjuk exe yang sekarang.
 await syncAutoStartPath();
+// Self-heal: setiap kali agent versi terbaru jalan, exe versi lama di folder yang sama
+// (yang biasanya terkunci oleh instance boot task/watchdog) dibunuh & dihapus.
+await cleanupOldAgents();
 setInterval(() => loop(cfg), cfg.interval * 1000);
