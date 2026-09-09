@@ -7,7 +7,8 @@ async function loadPublic() {
   landing.plans = plans.data || [];
   landing.settings = settings.data || {};
   $("#statUnits").textContent = landing.pcs.length || "—";
-  $("#noticeBox").textContent = landing.settings.notice || "";
+  const noticeEl = $("#noticeBox");
+  if (noticeEl) noticeEl.textContent = landing.settings.notice || "";
   const wa = (landing.settings.wa_admin || "").replace(/\D/g, "");
   if (wa) $("#heroWA").href = `https://wa.me/${wa}?text=${encodeURIComponent(t("wa_text"))}`;
   renderPcs();
