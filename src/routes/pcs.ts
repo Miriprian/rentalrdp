@@ -185,14 +185,15 @@ export const pcRoutes = new Elysia()
     const digits = (n: number) => Array.from({ length: n }, () => randomInt(0, 10)).join("");
     const username = "rent_" + digits(8);
     const password = "pass_" + digits(12);
+    const taskId = crypto.randomUUID();
     await q(
       `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','create_user',$3,'pending')`,
-      [crypto.randomUUID(), params.id, JSON.stringify({ username, password })]
+      [taskId, params.id, JSON.stringify({ username, password })]
     );
     // Catat akun buatan manual supaya bisa dicek lagi di dashboard admin (kalau lupa copy).
     await q(
-      `INSERT INTO rent_accounts (id, pc_id, pc_code, username, password_enc, status) VALUES ($1,$2,$3,$4,$5,'active')`,
-      [crypto.randomUUID(), params.id, pc.code, username, await encryptText(password)]
+      `INSERT INTO rent_accounts (id, task_id, pc_id, pc_code, username, password_enc, status) VALUES ($1,$2,$3,$4,$5,$6,'active')`,
+      [crypto.randomUUID(), taskId, params.id, pc.code, username, await encryptText(password)]
     );
     await audit("pc.manual_rent_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
     return { ok: true, message: `Tugas create_user dikirim ke agent (${username}).`, username, password, saved: true };
@@ -227,7 +228,11 @@ export const pcRoutes = new Elysia()
     // Daftar akun RDP (manual) terbaru — bisa dicek kalau admin lupa copy saat bikin.
     const me = await currentUser(request);
     if (!me || !isAdmin(me.role)) return denied(set);
-    const rows = await all(`SELECT * FROM rent_accounts ORDER BY created_at DESC LIMIT 200`);
+    const rows = await all(
+      `SELECT a.*, t.status AS task_status, t.result AS task_result, t.done_at AS task_done_at
+       FROM rent_accounts a LEFT JOIN agent_tasks t ON t.id = a.task_id
+       ORDER BY a.created_at DESC LIMIT 200`
+    );
     for (const r of rows as { password_enc: string }[]) {
       try {
         (r as { password: string }).password = await decryptText(r.password_enc);
