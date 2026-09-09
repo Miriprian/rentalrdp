@@ -26,5 +26,6 @@ jobs:
           port: 22
           script: |
             cd /opt/rentalrdp || { echo "Folder belum ada (jalankan install-lxc.sh dulu)"; exit 1; }
-            git pull --ff-only || exit 1
+            git fetch origin || exit 1
+            git reset --hard origin/main || exit 1
             bash ./update.sh || exit 1
