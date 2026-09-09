@@ -48,12 +48,13 @@ function statusBadge(s) {
 }
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
-// Spek lengkap ala AIDA64: label kiri, nilai kanan, tanpa emoji. Semua tampil langsung.
+// Spek lengkap ala AIDA64: label kiri rata kanan (titik dua sejajar kebawah), nilai kanan. Tanpa emoji.
 function specHtml(p) {
   let hw = {};
   try { hw = JSON.parse(p.hw_json || "{}"); } catch {}
   const rows = [];
-  if (p.motherboard) rows.push([t("spec_mb"), esc(p.motherboard)]);
+  // Urutan: Motherboard → CPU → GPU → RAM → Storage → OS → Lokasi → Internet.
+  if (p.motherboard) rows.push([t("spec_mb"), esc(p.motherboard) + (hw.ramType ? ` (${esc(hw.ramType)})` : "")]);
   if (p.cpu) {
     let s = esc(p.cpu);
     if (hw.cpuCores) s += ` — ${hw.cpuCores}c/${hw.cpuThreads || hw.cpuCores}t${hw.cpuMaxGhz ? " @ " + hw.cpuMaxGhz + "GHz" : ""}`;
@@ -61,17 +62,11 @@ function specHtml(p) {
   }
   if (p.gpu) {
     let s = esc(p.gpu);
-    if (hw.gpuVramGb) s += ` — ${t("spec_vram", { vram: hw.gpuVramGb })}`;
+    if (hw.gpuVramGb) s += ` (${t("spec_vram", { vram: hw.gpuVramGb })})`;
     rows.push([t("spec_gpu"), s]);
   }
   rows.push([t("spec_ram"), `${p.ram_gb || 0}GB${hw.ramType ? " " + esc(hw.ramType) : ""}`]);
-  if (hw.ramModules && hw.ramModules.length) {
-    rows.push([t("spec_ram_modules"), hw.ramModules.map((m) => `${m.capacityGb}GB ${hw.ramType || m.type || ""} ${m.speed || "?"}MHz ${esc(m.partNumber || m.manufacturer || "")}`.trim()).join(" + ")]);
-  }
   rows.push([t("spec_storage"), `${p.storage_gb || 0}GB${p.storage_type ? " " + esc(p.storage_type) : ""}`]);
-  if (hw.disks && hw.disks.length) {
-    rows.push([t("spec_disks"), hw.disks.map((d) => `${d.capacityGb}GB ${esc(d.model || "")}${d.busType ? ` (${esc(d.busType)})` : ""}`.trim()).join(" + ")]);
-  }
   if (p.os) rows.push([t("spec_os"), esc(p.os)]);
   if (p.location) rows.push([t("spec_loc"), esc(p.location)]);
 
@@ -81,8 +76,16 @@ function specHtml(p) {
     if (p.net_tested_at) val += " · " + new Date(p.net_tested_at).toLocaleString(langState.lang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
     rows.push([t("spec_net"), val]);
   }
+
+  // Detail fisik RAM & disk — tetap tampil, di bawah urutan utama.
+  if (hw.ramModules && hw.ramModules.length) {
+    rows.push([t("spec_ram_modules"), hw.ramModules.map((m) => `${m.capacityGb}GB ${m.speed || "?"}MHz ${esc(m.partNumber || m.manufacturer || "")}`.trim()).join(" + ")]);
+  }
+  if (hw.disks && hw.disks.length) {
+    rows.push([t("spec_disks"), hw.disks.map((d) => `${d.capacityGb}GB ${esc(d.model || "")}${d.busType ? ` (${esc(d.busType)})` : ""}`.trim()).join(" + ")]);
+  }
   if (!rows.length) return "";
-  return `<div class="mt-2 text-xs"><div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">${rows.map(([k, v]) => `<div class="text-slate-400 whitespace-nowrap">${k}</div><div class="text-slate-200">${v}</div>`).join("")}</div></div>`;
+  return `<div class="mt-2 text-xs"><div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">${rows.map(([k, v]) => `<div class="text-slate-400 text-right whitespace-nowrap select-none">${k}:</div><div class="text-slate-200">${v}</div>`).join("")}</div></div>`;
 }
 
 async function loadMe() {

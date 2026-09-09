@@ -105,7 +105,7 @@ const I18N = {
     spec_mb: "Motherboard",
     spec_loc: "Lokasi",
     spec_vram: "VRAM {vram}GB",
-    spec_net: "Internet",
+    spec_net: "Kecepatan Internet",
     net_speed: "{down}↓ / {up}↑ Mbps • ping {ping}ms",
     // landing.js
     msg_welcome: "Selamat datang, ",
@@ -324,7 +324,7 @@ const I18N = {
     spec_mb: "Motherboard",
     spec_loc: "Location",
     spec_vram: "VRAM {vram}GB",
-    spec_net: "Internet",
+    spec_net: "Speed Internet",
     net_speed: "{down}↓ / {up}↑ Mbps • ping {ping}ms",
     msg_welcome: "Welcome, ",
     wa_text: "Hi Rental PC by Miriprian, I'd like to ask about renting a bare metal PC",
