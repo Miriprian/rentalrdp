@@ -224,10 +224,13 @@ async function adminRentAccHtml() {
         <span class="text-xs px-2 py-1 rounded ${a.status === "active" ? "bg-emerald-700" : "bg-red-800"}">${esc(a.status)}</span>
         <span class="ml-auto text-xs text-slate-400">${esc(a.pc_code)} • ${new Date(a.created_at).toLocaleString("id-ID")}</span>
       </div>
-      <div class="mono mt-1 text-slate-200">${t("pass")}: ${esc(a.password)}</div>
+      <div class="mono text-xs text-slate-300 mt-1">${t("host_local")} : ${esc(a.pc_ip_local || "-")}:${esc(a.pc_rdp_port || 3389)}</div>
+      <div class="mono text-xs text-slate-300">${t("host_public")} : ${esc(a.pc_ip_public || "-")}:${esc(a.pc_rdp_port || 3389)}</div>
+      <div class="mono text-xs text-slate-300">${t("user")} : ${esc(a.username)}</div>
+      <div class="mono text-xs text-slate-200">${t("pass")} : ${esc(a.password)}</div>
       <div class="text-xs mt-1">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
       ${a.task_status === "failed" ? `<div class="text-xs text-red-300 mt-1">${String(a.task_result || "").includes("14 characters") ? t("task_fail_shortpass") : t("task_fail_hint")}</div>` : ""}
-      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy")}</button>
+      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy_all")}</button>
     </div>`).join("") : `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("rent_acc_empty")}</div>`) + `</div>`;
 }
 function taskBadge(status, result, pcStatus) {
@@ -238,8 +241,9 @@ function taskBadge(status, result, pcStatus) {
     ? `<span class="px-2 py-0.5 rounded bg-slate-700 text-[11px] font-bold">⏳ ${t("task_pending")}</span> <span class="text-slate-400">${t("task_pending_off")}</span>`
     : `<span class="px-2 py-0.5 rounded bg-slate-700 text-[11px] font-bold">⏳ ${t("task_pending")}</span> <span class="text-slate-400">${t("task_pending_on")}</span>`;
 }
-window.copyAcc = function (u, p) {
-  navigator.clipboard?.writeText(`User: ${u}\nPass: ${p}`).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), `${u} / ${p}`));
+window.copyAcc = function (u, p, local, pub) {
+  const txt = `${t("host_local")} : ${local}\n${t("host_public")} : ${pub}\n${t("user")} : ${u}\n${t("pass")} : ${p}`;
+  navigator.clipboard?.writeText(txt).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), txt));
 };
 
 async function adminUsersHtml() {

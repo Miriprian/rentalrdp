@@ -196,8 +196,26 @@ export const pcRoutes = new Elysia()
       `INSERT INTO rent_accounts (id, task_id, pc_id, pc_code, username, password_enc, status) VALUES ($1,$2,$3,$4,$5,$6,'active')`,
       [crypto.randomUUID(), taskId, params.id, pc.code, username, await encryptText(password)]
     );
-    await audit("pc.manual_rent_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
-    return { ok: true, message: `Tugas create_user dikirim ke agent (${username}).`, username, password, saved: true };
+    // User baru dibuat → bersihkan sisa akun rent_ lain di PC itu (mimpi: hanya 1 user rental aktif).
+    // Prioritas: buat user baru dulu (task di atas), lalu hapus akun lama.
+    const others = await all(`SELECT username FROM rent_accounts WHERE pc_id=$1 AND status='active' AND username<>$2`, [params.id, username]);
+    const deletedUsernames: string[] = [];
+    for (const o of others as { username: string }[]) {
+      await q(
+        `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','delete_user',$3,'pending')`,
+        [crypto.randomUUID(), params.id, JSON.stringify({ username: o.username })]
+      );
+      await q(`UPDATE rent_accounts SET status='deleted', deleted_at=NOW() WHERE pc_id=$1 AND username=$2`, [params.id, o.username]);
+      deletedUsernames.push(o.username);
+    }
+    await audit("pc.manual_rent_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username, cleaned: deletedUsernames }, ip: clientIp(request) });
+    return {
+      ok: true,
+      message: deletedUsernames.length
+        ? `Tugas create_user dikirim ke agent. Akun lama dihapus (${deletedUsernames.join(", ")}).`
+        : `Tugas create_user dikirim ke agent (${username}).`,
+      username, password, saved: true,
+    };
   })
   .post(
     "/api/admin/pcs/:id/delete-user",
@@ -231,7 +249,8 @@ export const pcRoutes = new Elysia()
     if (!me || !isAdmin(me.role)) return denied(set);
     const rows = await all(
       `SELECT a.*, t.status AS task_status, t.result AS task_result, t.done_at AS task_done_at,
-              p.status AS pc_status, p.last_seen_at AS pc_last_seen
+              p.status AS pc_status, p.last_seen_at AS pc_last_seen,
+              p.ip_public AS pc_ip_public, p.ip_local AS pc_ip_local, p.rdp_port AS pc_rdp_port
        FROM rent_accounts a
        LEFT JOIN agent_tasks t ON t.id = a.task_id
        LEFT JOIN pcs p ON p.id = a.pc_id

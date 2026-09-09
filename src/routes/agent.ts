@@ -33,7 +33,7 @@ export const agentRoutes = new Elysia()
     const stringMap: Record<string, unknown> = {
       cpu: b.cpu, gpu: b.gpu, os: b.os, storage_type: b.storageType,
       ip_public: b.ipPublic, location: b.location, name: b.name,
-      motherboard: b.motherboard,
+      motherboard: b.motherboard, ip_local: b.lanIp,
     };
     for (const [col, val] of Object.entries(stringMap)) {
       if (typeof val === "string" && val.trim() && val.trim().length >= 2) {

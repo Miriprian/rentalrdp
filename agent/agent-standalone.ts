@@ -15,7 +15,7 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { connect } from "node:net";
-import { hostname, tmpdir } from "node:os";
+import { hostname, tmpdir, networkInterfaces } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
 
 // ─── CONFIG ───────────────────────────────────────────────────
@@ -331,7 +331,7 @@ async function runPowerShell(script: string): Promise<string> {
 }
 
 async function detectSpecs() {
-  const specs = { cpu: "", gpu: "", ramGb: 0, storageGb: 0, os: "", storageType: "SSD", motherboard: "", ramType: "", gpuVramGb: 0, cpuCores: 0, cpuThreads: 0, cpuMaxGhz: 0, ramModules: [] as unknown[], disks: [] as unknown[] };
+  const specs = { cpu: "", gpu: "", ramGb: 0, storageGb: 0, os: "", storageType: "SSD", motherboard: "", ramType: "", gpuVramGb: 0, cpuCores: 0, cpuThreads: 0, cpuMaxGhz: 0, ramModules: [] as unknown[], disks: [] as unknown[], lanIp: "" };
   try {
     if (IS_WIN) {
       const out = await runPowerShell(WIN_SPEC_PS1);
@@ -375,6 +375,19 @@ async function detectSpecs() {
   } catch (e) {
     log(`detectSpecs error: ${String(e).slice(0, 200)}`);
   }
+  // IP LAN (untuk Host local di info koneksi RDP)
+  try {
+    const nets = networkInterfaces();
+    for (const list of Object.values(nets)) {
+      for (const x of list || []) {
+        if (x.family === "IPv4" && !x.internal) {
+          specs.lanIp = x.address;
+          break;
+        }
+      }
+      if (specs.lanIp) break;
+    }
+  } catch {}
   return specs;
 }
 
