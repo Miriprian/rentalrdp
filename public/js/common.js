@@ -56,9 +56,11 @@ function specHtml(p) {
   // Urutan: Motherboard → CPU → GPU → RAM → Storage → OS → Lokasi → Internet.
   if (p.motherboard) rows.push([t("spec_mb"), esc(p.motherboard) + (hw.ramType ? ` (${esc(hw.ramType)})` : "")]);
   if (p.cpu) {
-    let s = esc(p.cpu);
-    if (hw.cpuCores) s += ` — ${hw.cpuCores}c/${hw.cpuThreads || hw.cpuCores}t${hw.cpuMaxGhz ? " @ " + hw.cpuMaxGhz + "GHz" : ""}`;
-    rows.push([t("spec_cpu"), s]);
+    rows.push([t("spec_cpu"), esc(p.cpu) + (hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : "")]);
+    if (hw.cpuCores) {
+      rows.push([t("spec_core"), String(hw.cpuCores)]);
+      rows.push([t("spec_threads"), String(hw.cpuThreads || hw.cpuCores)]);
+    }
   }
   if (p.gpu) {
     let s = esc(p.gpu);
