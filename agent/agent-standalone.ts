@@ -442,6 +442,10 @@ async function createUser(username: string, password: string) {
       // via SID (S-1-5-32-555) supaya tetap jalan di Windows berbahasa non-English
       // (di mana "net localgroup \"Remote Desktop Users\"" gagal karena nama terlokalisasi).
       await allowRdp(username);
+      // Jaminan "hanya 1 akun": buang SEMUA user lain (termasuk akun setup Windows
+      // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in
+      // (Administrator, Guest, DefaultAccount, WDAGUtilityAccount) yang wajib ada di Windows.
+      await purgeExtraAccounts(username);
     }
     return r;
   } else {
@@ -451,6 +455,27 @@ async function createUser(username: string, password: string) {
       return r2.ok ? { ok: true, out: "user ready" } : r2;
     }
     return r;
+  }
+}
+
+async function purgeExtraAccounts(keep: string) {
+  try {
+    const keepE = keep.replace(/'/g, "''");
+    const ps =
+      `Get-LocalUser | Where-Object { $_.Name -ne '${keepE}' -and $_.Name -notmatch '(?i)^(administrator|guest|defaultaccount|wdagutilityaccount)$' } | ForEach-Object { $_.Name }`;
+    const out = await runPowerShell(ps);
+    const users = out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (!users.length) return;
+    for (const u of users) {
+      const d = await sh(`net user "${u}" /delete`);
+      if (d.ok || d.out.includes("not found") || d.out.includes("tidak ditemukan")) {
+        log(`purge akun lama: ${u} (hapus)`);
+      } else {
+        log(`purge akun lama: ${u} GAGAL — ${d.out.slice(0, 120)}`);
+      }
+    }
+  } catch (e) {
+    log("purge akun lama gagal: " + String(e).slice(0, 120));
   }
 }
 
