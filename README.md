@@ -83,7 +83,7 @@ File rilis mengikuti pola penamaan `<os>-rentalrdp-agent-v<versi>.exe`, misalnya
 
 1. Dari **Dashboard Admin → Kelola PC**, buat PC baru (kode & token dibuat otomatis; token hanya tampil sekali).
 2. Unduh `windows-rentalrdp-agent-v1.exe` (tombol unduh berpindah sendiri ke versi terbaru) dan salin ke PC fisik.
-3. **Klik dua kali** file tersebut, lalu pilih **1 — Install / Ganti Token** (isi Server URL & Agent Token; auto-start langsung diaktifkan) → jalankan agent.
+3. **Klik dua kali** file tersebut, lalu pilih **1 — Install / Ganti Token** (isi Server URL & Agent Token; auto-start langsung diaktifkan). Kalau muncul pop-up **UAC**, klik **Ya** — maka task BOOT (SYSTEM) + watchdog terpasang sehingga agent tidak bisa dihentikan penyewa. Bila tanpa izin admin, agent tetap dipasang auto-start saat login sebagai fallback.
 4. Dalam beberapa detik, PC muncul di katalog publik lengkap dengan spesifikasi aslinya.
 
 Menu: `1` install/ganti token · `2` update dari GitHub (agent berhenti & restart otomatis) · `3` keluar.

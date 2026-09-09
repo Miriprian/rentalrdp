@@ -695,17 +695,91 @@ async function anotherInstanceRunning(): Promise<boolean> {
   }
 }
 
-// Jalankan perintah schtasks lewat UAC (muncul pop-up sekali) — butuh admin.
-async function schtasksElevated(cmd: string) {
+// Cek apakah proses berjalan sebagai Administrator (Windows).
+async function isWindowsAdmin(): Promise<boolean> {
   try {
-    const psFile = join(EXE_DIR, ".rentalrdp-install.ps1");
-    writeFileSync(psFile, cmd);
-    await runExe(["powershell", "-NoProfile", "-Command", `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"${psFile}"' -WindowStyle Hidden`]);
-    await Bun.sleep(2500); // beri waktu UAC + pembuatan task
+    const r = await runExe(["powershell", "-NoProfile", "-Command", "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"]);
+    return r.out.trim() === "True";
   } catch {
-  } finally {
-    try { unlinkSync(join(EXE_DIR, ".rentalrdp-install.ps1")); } catch {}
+    return false;
   }
+}
+
+async function schtasksHas(name: string): Promise<boolean> {
+  return (await runExe(["schtasks", "/query", "/tn", name])).ok;
+}
+
+// Tulis ulang mechanisme: buat task BOOT + Watchdog (SYSTEM) langsung kalau admin,
+// atau sekali lewat UAC (pop-up) kalau bukan admin — lalu POLLING sampai task benar-benar
+// muncul (dulu cukup 2,5dtk sehingga gampang false-negative). Kalau sama sekali gagal,
+// fallback ke auto-start saat login (HKCU\...\Run) agar agent tetap ikut start.
+async function createWindowsAutoStart(): Promise<{ bootOk: boolean; watchOk: boolean; mode: "system" | "user" | "none" }> {
+  const exePath = process.execPath;
+  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
+  const TASK_BOOT = "rentalrdp-agent";
+  const TASK_WATCH = "rentalrdp-agent-watchdog";
+
+  // 1) Bersihkan mekanisme lama (sumber jendela/UAC berlebih): Registry Run key + task.
+  await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
+  await runExe(["schtasks", "/delete", "/tn", TASK_BOOT, "/f"]);
+  await runExe(["schtasks", "/delete", "/tn", TASK_WATCH, "/f"]);
+
+  // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
+  try {
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+  } catch {}
+
+  const tr = `"${exePath}" --silent`;
+  const trWatch = `"${WATCH}"`;
+
+  // 3) Buat task BOOT + Watchdog sebagai SYSTEM (jalan sebelum login, anti-stop).
+  if (await isWindowsAdmin()) {
+    // Sudah admin → buat langsung, tanpa UAC.
+    await runExe(["schtasks", "/create", "/tn", TASK_BOOT, "/tr", tr, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+    await runExe(["schtasks", "/create", "/tn", TASK_WATCH, "/tr", trWatch, "/sc", "minute", "/mo", "1", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+  } else {
+    // Bukan admin → minta konfirmasi UAC SEKALI untuk membuat kedua task,
+    // lalu tunggu sampai task-nya benar-benar muncul (UAC + create butuh beberapa detik).
+    let psFile = "";
+    if (process.env.RENTALRDP_NO_ELEVATE !== "1") {
+      console.log("  Akan muncul pop-up UAC (User Account Control) — klik \u201cYa\u201d / \u201cYes\u201d.\n");
+      psFile = join(EXE_DIR, ".rentalrdp-install.ps1");
+      try {
+        writeFileSync(psFile,
+          `schtasks /create /tn "${TASK_BOOT}" /tr "${tr}" /sc onstart /ru SYSTEM /rl highest /f\r\n` +
+          `schtasks /create /tn "${TASK_WATCH}" /tr "${trWatch}" /sc minute /mo 1 /ru SYSTEM /rl highest /f\r\n`,
+          "utf8");
+        await runExe(["powershell", "-NoProfile", "-Command", `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"${psFile}"' -WindowStyle Hidden`]);
+      } catch {}
+    }
+    // Polling sampai task muncul (atau timeout 20 detik).
+    const end = Date.now() + 20000;
+    while (Date.now() < end) {
+      if ((await schtasksHas(TASK_BOOT)) && (await schtasksHas(TASK_WATCH))) break;
+      await Bun.sleep(700);
+    }
+    if (psFile) { try { unlinkSync(psFile); } catch {} }
+  }
+
+  const bootOk = await schtasksHas(TASK_BOOT);
+  const watchOk = await schtasksHas(TASK_WATCH);
+  let mode: "system" | "user" | "none" = "none";
+
+  if (bootOk) { mode = "system"; log("Auto-start OK: task BOOT SYSTEM (background, anti-stop)."); }
+  if (watchOk) log("Watchdog OK: auto-restart tiap 1 menit kalau agent mati.");
+
+  // 4) Sama sekali tidak dapat izin admin / UAC ditolak → fallback auto-start saat login.
+  if (!bootOk && !watchOk) {
+    const r = await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/d", `"${exePath}" --silent`, "/f"]);
+    if (r.ok) {
+      mode = "user";
+      log(`Auto-start (login, non-admin) AKTIF — tanpa proteksi SYSTEM. Untuk proteksi penuh anti-stop: jalankan ${AGENT_EXE_NAME} sebagai ADMINISTRATOR (klik kanan → Run as administrator → pilih 1).`);
+    } else {
+      log(`⚠️ Auto-start GAGAL. Jalankan ${AGENT_EXE_NAME} sebagai ADMINISTRATOR (klik kanan → Run as administrator → pilih 1).`);
+    }
+  }
+
+  return { bootOk, watchOk, mode };
 }
 
 // Sembunyikan console window saat mode --silent.
@@ -719,40 +793,6 @@ function hideConsole() {
     const h = user32.symbols.GetConsoleWindow();
     if (h) user32.symbols.ShowWindow(h, 0);
   } catch {}
-}
-
-async function createWindowsAutoStart(): Promise<boolean> {
-  const exePath = process.execPath;
-  const tr = `"${exePath}" --silent`;
-  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
-
-  // 1) Bersihkan mekanisme lama (sumber jendela/UAC berlebih): Registry Run key + task login.
-  await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
-  await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent", "/f"]);
-
-  // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
-  try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
-  } catch {}
-
-  // 3) Task BOOT (SYSTEM) — jalan SEBELUM login, session 0 (tak terlihat), dan tidak bisa
-  //    di-kill oleh user biasa karena proses berjalan sebagai SYSTEM. Butuh admin (--install).
-  if (process.env.RENTALRDP_NO_ELEVATE !== "1") {
-    await schtasksElevated(`schtasks /create /tn "rentalrdp-agent" /tr "${tr}" /sc onstart /ru SYSTEM /rl highest /f`);
-  }
-  const bootOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
-
-  // 4) Watchdog task (SYSTEM) — tiap 1 menit cek agent; kalau mati → nyalakan lagi.
-  if (process.env.RENTALRDP_NO_ELEVATE !== "1") {
-    await schtasksElevated(`schtasks /create /tn "rentalrdp-agent-watchdog" /tr "\"${WATCH}\"" /sc minute /mo 1 /ru SYSTEM /rl highest /f`);
-  }
-  const watchOk = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent-watchdog"])).ok;
-
-  if (bootOk) log("Auto-start OK: task BOOT SYSTEM (background, anti-stop).");
-  if (watchOk) log("Watchdog OK: auto-restart tiap 1 menit kalau agent mati.");
-  if (!bootOk) log(`⚠️ Gagal buat task BOOT. Jalankan ${AGENT_EXE_NAME} --install AS ADMINISTRATOR`);
-  if (!watchOk) log("⚠️ Gagal buat watchdog. Agent tetap jalan tapi tanpa auto-recover.");
-  return bootOk || watchOk;
 }
 
 // Cek apakah task BOOT menunjuk exe yang sama dengan lokasi agent sekarang
@@ -778,8 +818,8 @@ async function autoInstall() {
       log("Task auto-start masih menunjuk lokasi lama — memperbarui ke " + process.execPath);
     }
     const wasAuto = cfg.autostart;
-    const ok = await createWindowsAutoStart();
-    if (ok && !wasAuto) setConfigFlag("autostart", true);
+    const { mode } = await createWindowsAutoStart();
+    if (mode !== "none" && !wasAuto) setConfigFlag("autostart", true);
     return;
   }
   if (loadConfig().autostart) return;
