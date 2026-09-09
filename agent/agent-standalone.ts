@@ -12,7 +12,7 @@
  *   - Jalankan dengan --install untuk auto-start, --uninstall untuk hapus
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, copyFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { hostname } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
@@ -22,6 +22,9 @@ const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
 const CONFIG_FILE = existsSync(join(EXE_DIR, "config.json"))
   ? join(EXE_DIR, "config.json")
   : join(process.cwd(), "config.json");
+// Lokasi instal resmi — exe yang di-download otomatis dipindah ke sini saat di-run.
+const INSTALL_DIR = "C:\\ProgramData\\agent";
+const INSTALL_PATH = join(INSTALL_DIR, "rentalrdp-agent.exe");
 type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string };
 const DEFAULT: Config = { api: "", token: "", interval: 15 };
 
@@ -567,13 +570,31 @@ async function createWindowsAutoStart(): Promise<boolean> {
   return bootOk || watchOk;
 }
 
+// Cek apakah task BOOT menunjuk exe yang sama dengan lokasi agent sekarang
+// (kalau tidak, task lama menunjuk path lama → perlu dibuat ulang saat migrasi folder).
+async function bootTaskMatchesCurrent(): Promise<boolean> {
+  try {
+    const xml = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent", "/xml"])).out;
+    if (!xml.trim()) return false; // task tidak ada
+    return xml.toLowerCase().includes((process.execPath || "").toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 async function autoInstall() {
   if (IS_WIN) {
     // Sudah terpasang dengan task BOOT → jangan pasang ulang (hindari pop-up UAC tiap boot).
     const hasBoot = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent"])).ok;
-    if (loadConfig().autostart && hasBoot) return;
+    const cfg = loadConfig();
+    if (cfg.autostart && hasBoot) {
+      // Task ada tapi menunjuk lokasi lama (exe pernah dipindah ke ProgramData\agent)?
+      if (await bootTaskMatchesCurrent()) return;
+      log("Task auto-start masih menunjuk lokasi lama — memperbarui ke " + process.execPath);
+    }
+    const wasAuto = cfg.autostart;
     const ok = await createWindowsAutoStart();
-    if (ok) setConfigFlag("autostart", true);
+    if (ok && !wasAuto) setConfigFlag("autostart", true);
     return;
   }
   if (loadConfig().autostart) return;
@@ -611,8 +632,70 @@ async function autoUninstall() {
   }
 }
 
+// ─── AUTO-INSTALL KE C:\ProgramData\agent ────────────────────
+// Kalau exe dijalankan dari folder mana pun (mis. Downloads) dan belum ada di lokasi
+// resmi, copy diri ke INSTALL_PATH lalu jalankan versi terpasang itu (tanpa pindah manual).
+// Butuh admin (UAC) untuk menulis ProgramData.
+
+function quoteArg(a: string): string {
+  return ' "' + a.replace(/"/g, '""') + '"';
+}
+
+function installedArgString(): string {
+  const skip = new Set(["--install", "-i", "--uninstall", "-u"]);
+  return process.argv.slice(2).filter((a) => !skip.has(a)).map(quoteArg).join("");
+}
+
+async function ensureInstalled(): Promise<boolean> {
+  const silentNow = process.argv.slice(2).includes("--silent") || process.argv.slice(2).includes("-s");
+  if (!IS_WIN || silentNow) return false;
+  if (process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase()) return false; // sudah terpasang
+  if (process.argv.slice(2).includes("--uninstall") || process.argv.slice(2).includes("-u")) return false;
+  try {
+    mkdirSync(INSTALL_DIR, { recursive: true });
+    const targetRunning = await anotherInstanceRunning();
+    if (!targetRunning) {
+      copyFileSync(process.execPath, INSTALL_PATH);
+      try {
+        if (existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))) {
+          copyFileSync(CONFIG_FILE, join(INSTALL_DIR, "config.json"));
+        }
+      } catch {}
+      log(`Terpasang: ${INSTALL_PATH}`);
+      Bun.spawn([INSTALL_PATH, ...process.argv.slice(2)], { windowsHide: true });
+      return true;
+    }
+    // Versi lama masih berjalan → ganti lewat bat (taskkill → copy → start).
+    const bat = join(INSTALL_DIR, ".relocate.bat");
+    const args = installedArgString();
+    writeFileSync(
+      bat,
+      `@echo off\r\nsetlocal\r\ntaskkill /f /im rentalrdp-agent.exe >nul 2>&1\r\n` +
+        `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
+        `copy /y "${process.execPath}" "${INSTALL_PATH}" >nul\r\n` +
+        (existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
+          ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >nul\r\n`
+          : "") +
+        `start "" "${INSTALL_PATH}"${args}\r\n` +
+        `del /q "%~f0" >nul 2>&1\r\n`,
+      "utf8"
+    );
+    log(`Mengganti agent lama dengan versi baru di ${INSTALL_PATH}...`);
+    Bun.spawn(["cmd", "/c", `"${bat}"`], { windowsHide: true });
+    return true;
+  } catch (e) {
+    log("Gagal pasang otomatis ke ProgramData: " + String(e).slice(0, 150));
+    log("Jalankan exe ini sebagai ADMINISTRATOR (klik kanan -> Run as administrator).");
+    return false;
+  }
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────
 const args = process.argv.slice(2);
+
+// Auto-passang: kalau dijalankan dari folder mana pun (Downloads dll), pindah ke
+// C:\ProgramData\agent\rentalrdp-agent.exe lalu jalankan dari sana.
+if (await ensureInstalled()) process.exit(0);
 
 if (args.includes("--install") || args.includes("-i")) {
   await autoInstall();
