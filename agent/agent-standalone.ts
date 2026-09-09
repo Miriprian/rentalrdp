@@ -648,22 +648,42 @@ async function ensureInstalled(): Promise<boolean> {
     // diri sendiri, lalu start dari ProgramData dengan window NORMAL (wizard terlihat), dan
     // tidak ada race double-instance karena proses lama sudah mati duluan.
     const argLine = process.argv.slice(2).map((a) => " '" + a.replace(/'/g, "''") + "'").join(" ");
+    const LOG = join(INSTALL_DIR, ".relocate.log");
     const cfgLine =
       existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
-        ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >nul\r\n`
+        ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >> "%LOG%" 2>&1\r\n`
         : "";
     const bat = join(INSTALL_DIR, ".relocate.bat");
-    writeFileSync(
-      bat,
-      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${ASSET_NAME} >nul 2>&1\r\n` +
-        `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
-        `copy /y "${process.execPath}" "${INSTALL_PATH}" >nul\r\n` +
-        cfgLine +
-        `powershell -NoProfile -WindowStyle Normal -Command "& '${INSTALL_PATH}' ${argLine}"\r\n` +
-        `del /q "%~f0" >nul 2>&1\r\n`,
-      "utf8"
-    );
+    const batScript =
+      `@echo off` +
+      `\r\nsetlocal` +
+      `\r\nset "LOG=${LOG}"` +
+      `\r\necho [%date% %time%] ==== relocate start ==== >> "%LOG%"` +
+      `\r\necho SRC=${process.execPath} >> "%LOG%"` +
+      `\r\necho DST=${INSTALL_PATH} >> "%LOG%"` +
+      `\r\nset /a attempt=0` +
+      `\r\n:again` +
+      `\r\nset /a attempt+=1` +
+      `\r\ntaskkill /f /t /im ${ASSET_NAME} >> "%LOG%" 2>&1` +
+      `\r\nping -n 4 127.0.0.1 >nul 2>&1` +
+      `\r\ncopy /y "${process.execPath}" "${INSTALL_PATH}" >> "%LOG%" 2>&1` +
+      cfgLine +
+      `\r\nif exist "${INSTALL_PATH}" for %%F in ("${INSTALL_PATH}") do if %%~zF GEQ 100000 goto copied` +
+      `\r\nif %attempt% GEQ 6 goto fail` +
+      `\r\necho [%time%] retry copy (percobaan %attempt%) >> "%LOG%"` +
+      `\r\nping -n 3 127.0.0.1 >nul 2>&1` +
+      `\r\ngoto again` +
+      `\r\n:copied` +
+      `\r\nfor %%F in ("${INSTALL_PATH}") do echo [%time%] COPY OK size=%%~zF >> "%LOG%"` +
+      `\r\npowershell -NoProfile -WindowStyle Normal -Command "& '${INSTALL_PATH}' ${argLine}"` +
+      `\r\ngoto done` +
+      `\r\n:fail` +
+      `\r\necho [%time%] COPY FAILED (file tidak terisi penuh) >> "%LOG%"` +
+      `\r\n:done` +
+      `\r\ndel /q "%~f0" >nul 2>&1`;
+    writeFileSync(bat, batScript, "utf8");
     log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
+    log(`Detail gagal/sukses akan ditulis ke ${LOG}`);
     Bun.spawn(["cmd", "/c", `"${bat}"`], { windowsHide: true });
     return true;
   } catch (e) {
