@@ -164,16 +164,19 @@ function cmpVersion(a: string, b: string): number {
 
 async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
   const oldPath = process.execPath;
-  // Nama file baru = nama asset versi terbaru (mis. windows-rentalrdp-agent-v6.exe),
+  // Nama file baru = nama asset versi terbaru (mis. windows-rentalrdp-agent-v9.exe),
   // BUKAN nama lama — hasil update selalu pakai nama versi terbaru.
   const newName = decodeURIComponent(rel.url.split("/").pop() || AGENT_EXE_NAME);
   const newPath = join(EXE_DIR, newName);
+  const oldName = AGENT_EXE_NAME;
   // Staging exe baru di folder yang SAMA dengan exe (newPath + ".new") — BUKAN folder .update.
-  // Batch updater dipisah sebagai file tersendiri di %TEMP% (tidak menyatu dengan exe):
-  // bat mematikan agent → me-rename ke nama versi terbaru → hapus exe lama → mulai ulang
-  // → lalu menghapus dirinya sendiri. Hasil akhir: folder exe bersih, hanya 1 file terbaru.
+  // Batch updater file tersendiri di %TEMP% (tidak menyatu dengan exe). Alur batch:
+  // kill agent → tunggu benar-benar mati → copy+dengan RETRY (lebih tahan dari 'move'
+  // yang gagal saat file di-lock AV) → verifikasi → hapus exe lama → start versi baru → self-delete.
+  // Semua langkah dicatat ke EXE_DIR\rentalrdp-update.log biar kalau gagal ketahuan kenapa.
   const staging = newPath + ".new";
   const updater = join(tmpdir(), "rentalrdp-apply-update.bat");
+  const logFile = join(EXE_DIR, "rentalrdp-update.log");
   try {
     try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
     try { rmSync(staging, { force: true }); } catch {}
@@ -186,15 +189,30 @@ async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> 
     const buf = await r.arrayBuffer();
     writeFileSync(staging, Buffer.from(buf));
     log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti ke ${newName} & restart otomatis...`);
-    const delOld = oldPath.toLowerCase() !== newPath.toLowerCase() ? `if /i not "${oldPath}"=="${newPath}" del /q "${oldPath}" >nul 2>&1\r\n` : "";
     const bat =
-      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${AGENT_EXE_NAME} >nul 2>&1\r\n` +
-      `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
-      `move /y "${staging}" "${newPath}" >nul 2>&1\r\n` +
-      `if exist "${staging}" copy /y "${staging}" "${newPath}" >nul\r\n` +
+      `@echo off\r\nsetlocal\r\n` +
+      `echo [%date% %time%] mulai update %oldName% -^> ${newName} >> "${logFile}"\r\n` +
+      `taskkill /f /im ${oldName} >nul 2>&1\r\n` +
+      `:wait\r\n` +
+      `taskkill /f /im ${oldName} >nul 2>&1\r\n` +
+      `tasklist /fi "imagename eq ${oldName}" 2>nul | find /i "${oldName}" >nul\r\n` +
+      `if not errorlevel 1 (ping -n 2 127.0.0.1 >nul & goto wait)\r\n` +
+      `set N=0\r\n` +
+      `:cp\r\n` +
+      `copy /y "${staging}" "${newPath}" >> "${logFile}" 2>&1\r\n` +
+      `if not errorlevel 1 goto copied\r\n` +
+      `set /a N+=1\r\n` +
+      `if %N% LSS 20 (ping -n 2 127.0.0.1 >nul & goto cp)\r\n` +
+      `goto fail\r\n` +
+      `:copied\r\n` +
       `del /q "${staging}" >nul 2>&1\r\n` +
-      delOld +
+      `if /i not "${oldPath}"=="${newPath}" del /q "${oldPath}" >nul 2>&1\r\n` +
+      `echo [%date% %time%] selesai, start ${newName} >> "${logFile}"\r\n` +
       `start "" "${newPath}" --silent\r\n` +
+      `del /q "%~f0" >nul 2>&1\r\n` +
+      `exit /b 0\r\n` +
+      `:fail\r\n` +
+      `echo [%date% %time%] GAGAL copy exe baru (file mungkin terkunci / anti-virus). Unduh manual dari GitHub Releases. >> "${logFile}"\r\n` +
       `del /q "%~f0" >nul 2>&1\r\n`;
     writeFileSync(updater, bat, "utf8");
     Bun.spawn(["cmd", "/c", `"${updater}"`], { windowsHide: true });
