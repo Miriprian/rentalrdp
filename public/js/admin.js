@@ -81,8 +81,7 @@ async function adminPcsHtml() {
           ${!p.last_seen_at ? `<span class="text-[11px] px-2 py-1 rounded-full bg-slate-700 font-bold">${t("waiting_agent")}</span>` : (p.is_active ? `<span class="text-[11px] px-2 py-1 rounded-full bg-emerald-700 font-bold">${t("published")}</span>` : `<span class="text-[11px] px-2 py-1 rounded-full bg-amber-700 font-bold">${t("not_published")}</span>`)}
           <span class="ml-auto text-xs">${esc(p.ip_public || "-")} • ${t("last_seen")}${p.last_seen_at ? new Date(p.last_seen_at).toLocaleString("id-ID") : "-"}</span>
         </div>
-        ${p.cpu ? `<div class="mt-1 space-y-0.5 text-xs text-slate-300">${specHtml(p)}</div>` : `<div class="mt-1 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}
-        ${netSpeedHtml(p)}${hwDetailHtml(p)}
+        ${p.cpu ? `<div class="mt-1">${specHtml(p)}</div>` : `<div class="mt-1 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}
         <div class="flex flex-wrap gap-2 mt-3 text-xs">
           <select id="st-${p.id}" class="px-3 py-2 rounded-lg bg-slate-800"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>
           <input id="ip-${p.id}" value="${esc(p.ip_public || "")}" placeholder="IP publik" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700"/>

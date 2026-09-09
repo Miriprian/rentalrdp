@@ -25,10 +25,8 @@ function renderPcs() {
         <span class="ml-auto">${statusBadge(p.status)}</span>
       </div>
       <div class="font-extrabold">${esc(p.name)}</div>
-      <div class="text-[11px] mt-0.5 text-emerald-300 font-bold">⭐ BARE METAL</div>
-      <div class="mt-1 space-y-0.5 text-xs text-slate-300">${specHtml(p)}</div>
-      ${netSpeedHtml(p)}
-      ${hwDetailHtml(p)}
+      <div class="text-[11px] mt-0.5 text-emerald-300 font-bold tracking-wide">BARE METAL</div>
+      ${specHtml(p)}
       <p class="text-xs text-slate-400 mt-2">${esc(p.description || "")}</p>
       <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
         <div class="bg-slate-800 rounded-lg p-2">${t("lbl_hour")}<br/><b class="text-emerald-300">${rupiah(p.price_hourly)}</b></div>
