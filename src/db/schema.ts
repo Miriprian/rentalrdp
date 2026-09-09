@@ -48,10 +48,10 @@ export const users = pgTable("users", {
   balance: integer("balance").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   failedLogin: integer("failed_login").notNull().default(0),
-  lockedUntil: timestamp("locked_until"),
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const pcs = pgTable("pcs", {
@@ -80,9 +80,9 @@ export const pcs = pgTable("pcs", {
   description: text("description").notNull().default(""),
   isBareMetal: boolean("is_bare_metal").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
-  lastSeenAt: timestamp("last_seen_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const plans = pgTable("plans", {
@@ -101,9 +101,9 @@ export const vouchers = pgTable("vouchers", {
   maxDiscountIdr: integer("max_discount_idr").notNull().default(0),
   quota: integer("quota").notNull().default(100),
   usedCount: integer("used_count").notNull().default(0),
-  expiresAt: timestamp("expires_at"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const orders = pgTable("orders", {
@@ -122,9 +122,9 @@ export const orders = pgTable("orders", {
   status: text("status").notNull().default("pending"),
   note: text("note").notNull().default(""),
   verifiedBy: text("verified_by").notNull().default(""),
-  paidAt: timestamp("paid_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const rentals = pgTable("rentals", {
@@ -136,12 +136,12 @@ export const rentals = pgTable("rentals", {
   rdpPort: integer("rdp_port").notNull().default(3389),
   rdpUser: text("rdp_user").notNull(),
   rdpPassEnc: text("rdp_pass_enc").notNull(), // AES-GCM base64
-  startAt: timestamp("start_at").notNull().defaultNow(),
-  endAt: timestamp("end_at").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull().defaultNow(),
+  endAt: timestamp("end_at", { withTimezone: true }).notNull(),
   status: text("status").notNull().default("active"),
   extendedCount: integer("extended_count").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const agentTasks = pgTable("agent_tasks", {
@@ -152,9 +152,9 @@ export const agentTasks = pgTable("agent_tasks", {
   payloadJson: text("payload_json").notNull().default("{}"),
   status: text("status").notNull().default("pending"),
   result: text("result").notNull().default(""),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  claimedAt: timestamp("claimed_at"),
-  doneAt: timestamp("done_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  doneAt: timestamp("done_at", { withTimezone: true }),
 });
 
 export const auditLogs = pgTable("audit_logs", {
@@ -166,13 +166,13 @@ export const auditLogs = pgTable("audit_logs", {
   entityId: text("entity_id").notNull().default(""),
   metaJson: text("meta_json").notNull().default("{}"),
   ip: text("ip").notNull().default(""),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull().default(""),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type User = typeof users.$inferSelect;
