@@ -229,8 +229,11 @@ export const pcRoutes = new Elysia()
     const me = await currentUser(request);
     if (!me || !isAdmin(me.role)) return denied(set);
     const rows = await all(
-      `SELECT a.*, t.status AS task_status, t.result AS task_result, t.done_at AS task_done_at
-       FROM rent_accounts a LEFT JOIN agent_tasks t ON t.id = a.task_id
+      `SELECT a.*, t.status AS task_status, t.result AS task_result, t.done_at AS task_done_at,
+              p.status AS pc_status, p.last_seen_at AS pc_last_seen
+       FROM rent_accounts a
+       LEFT JOIN agent_tasks t ON t.id = a.task_id
+       LEFT JOIN pcs p ON p.id = a.pc_id
        ORDER BY a.created_at DESC LIMIT 200`
     );
     for (const r of rows as { password_enc: string }[]) {
