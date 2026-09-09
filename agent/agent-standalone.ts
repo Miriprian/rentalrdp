@@ -466,17 +466,41 @@ async function purgeExtraAccounts(keep: string) {
     const out = await runPowerShell(ps);
     const users = out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
     if (!users.length) return;
+    let bridged = false;
     for (const u of users) {
-      const d = await sh(`net user "${u}" /delete`);
+      let d = await sh(`net user "${u}" /delete`);
+      // Gagal karena kemungkinan "akun admin terakhir tidak bisa dihapus":
+      // nyalakan sementara built-in Administrator (SID-500) sebagai admin kedua,
+      // lalu coba hapus lagi. Habis itu Administrator dinonaktifkan kembali.
+      if (!d.ok && !d.out.includes("not found") && !d.out.includes("tidak ditemukan")) {
+        if (!bridged) {
+          bridged = true;
+          await sh(`net user administrator ${genPass()}`);
+          await sh(`net user administrator /active:yes`);
+          log("Administrator built-in dinyalakan sementara sebagai jembatan agar akun admin lama bisa dihapus.");
+        }
+        d = await sh(`net user "${u}" /delete`);
+      }
       if (d.ok || d.out.includes("not found") || d.out.includes("tidak ditemukan")) {
         log(`purge akun lama: ${u} (hapus)`);
       } else {
         log(`purge akun lama: ${u} GAGAL — ${d.out.slice(0, 120)}`);
       }
     }
+    if (bridged) {
+      await sh(`net user administrator /active:no`);
+      log("Administrator built-in dinonaktifkan kembali setelah purge selesai.");
+    }
   } catch (e) {
     log("purge akun lama gagal: " + String(e).slice(0, 120));
   }
+}
+
+function genPass(n = 16) {
+  const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let s = "";
+  for (let i = 0; i < n; i++) s += c[Math.floor(Math.random() * c.length)];
+  return s;
 }
 
 async function allowRdp(username: string) {
