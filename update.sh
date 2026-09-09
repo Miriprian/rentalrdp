@@ -12,6 +12,20 @@ err()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 
 cd "$(dirname "$0")"
 
+# Bun mungkin tidak ada di PATH saat dipanggil via `sudo bash update.sh`
+# (mis. install di /root/.bun/bin dengan bash non-login). Deteksi otomatis:
+BUN_BIN="$(command -v bun 2>/dev/null || true)"
+if [ -z "$BUN_BIN" ]; then
+  for p in /root/.bun/bin /home/*/.bun/bin /opt/bun/bin /usr/local/bin; do
+    if [ -x "$p/bun" ]; then BUN_BIN="$p/bun"; break; fi
+  done
+fi
+if [ -n "$BUN_BIN" ]; then
+  export PATH="$(dirname "$BUN_BIN"):$PATH"
+else
+  warn "bun tidak terdeteksi di PATH. Install: curl -fsSL https://bun.sh/install | bash"
+fi
+
 echo ""
 echo "======================================"
 echo "  Rental PC by Miriprian — UPDATE dari GitHub"
