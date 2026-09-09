@@ -633,7 +633,7 @@ async function removeProfile(sid: string, name: string): Promise<boolean> {
   if (!safeSid) return false;
   for (let i = 0; i < 4; i++) {
     const po = await runPowerShell(
-      `$p = Get-CimInstance Win32_UserProfile -Filter "SID='${safeSid}'" -ErrorAction SilentlyContinue; if ($p) { try { Remove-Item -LiteralPath $p.LocalPath -Recurse -Force -ErrorAction Stop -Confirm:$false; Remove-CimInstance -InputObject $p -ErrorAction SilentlyContinue; Write-Output 'removed' } catch { Write-Output $_.Exception.Message } } else { Write-Output 'removed' }`
+      `$p = Get-CimInstance Win32_UserProfile -Filter "SID='${safeSid}'" -ErrorAction SilentlyContinue; if ($p) { try { $path = $p.LocalPath; if (Test-Path -LiteralPath $path) { & cmd /c "rd /s /q \`"$path\`"" 2>$null }; if (Test-Path -LiteralPath $path) { throw 'profil masih ada' }; Remove-CimInstance -InputObject $p -ErrorAction SilentlyContinue; Write-Output 'removed' } catch { Write-Output $_.Exception.Message } } else { Write-Output 'removed' }`
     );
     if (po.includes("removed")) return true;
     await new Promise((res) => setTimeout(res, 1500));
@@ -661,10 +661,14 @@ Get-CimInstance Win32_UserProfile | Where-Object { -not $_.Special } | ForEach-O
   $name = Split-Path -Path $path -Leaf
   try {
     if (Test-Path -LiteralPath $path) {
-      Remove-Item -LiteralPath $path -Recurse -Force -Confirm:$false -ErrorAction Stop
+      & cmd /c "rd /s /q \`"$path\`"" 2>$null
     }
-    Remove-CimInstance -InputObject $_ -ErrorAction SilentlyContinue
-    Write-Output ("OK|" + $name)
+    if (Test-Path -LiteralPath $path) {
+      Write-Output ("FAIL|" + $name + "|masih ada")
+    } else {
+      Remove-CimInstance -InputObject $_ -ErrorAction SilentlyContinue
+      Write-Output ("OK|" + $name)
+    }
   } catch {
     Write-Output ("FAIL|" + $name + "|" + $_.Exception.Message)
   }
@@ -970,17 +974,27 @@ async function loop(cfg: Config) {
       let res = { ok: true, out: "ok" };
       try {
         const p = JSON.parse(t.payload_json || "{}");
-        if (t.type === "create_user") res = await createUser(p.username, p.password);
-        else if (t.type === "delete_user") res = await deleteUser(p.username);
-        else if (t.type === "restart") {
-          res = { ok: true, out: "restarting..." };
-          setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
-        } else if (t.type === "shutdown") {
-          res = { ok: true, out: "shutting down..." };
-          setTimeout(() => sh(IS_WIN ? "shutdown /s /t 5" : "poweroff"), 2000);
-        } else {
-          res = { ok: true, out: "unknown task" };
-        }
+        // Timeout keamanan: kalau eksekusi kepalang lama (mis. hapus folder profil besar),
+        // post hasilnya supaya task tidak menggantung di "sedang diproses" selamanya.
+        const done = await Promise.race([
+          (async () => {
+            if (t.type === "create_user") return await createUser(p.username, p.password);
+            if (t.type === "delete_user") return await deleteUser(p.username);
+            if (t.type === "restart") {
+              setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
+              return { ok: true, out: "restarting..." };
+            }
+            if (t.type === "shutdown") {
+              setTimeout(() => sh(IS_WIN ? "shutdown /s /t 5" : "poweroff"), 2000);
+              return { ok: true, out: "shutting down..." };
+            }
+            return { ok: true, out: "unknown task" };
+          })(),
+          new Promise<{ ok: boolean; out: string }>((resolve) =>
+            setTimeout(() => resolve({ ok: false, out: "WAKTU HABIS (240s) — proses mungkin masih berjalan di latar belakang" }), 240000)
+          ),
+        ]);
+        res = done;
       } catch (e) {
         res = { ok: false, out: String(e).slice(0, 500) };
       }
@@ -1315,4 +1329,7 @@ await syncAutoStartPath();
 // Self-heal: setiap kali agent versi terbaru jalan, exe versi lama di folder yang sama
 // (yang biasanya terkunci oleh instance boot task/watchdog) dibunuh & dihapus.
 await cleanupOldAgents();
+// Self-heal profil: setiap boot, folder profil yatim (C:\Users) dibersihkan pelan-pelan
+// tanpa memblokir apa-apa — sisa obake/rent_ lama pasti hilang cepat atau lambat.
+sweepOrphanProfiles().catch(() => {});
 setInterval(() => loop(cfg), cfg.interval * 1000);
