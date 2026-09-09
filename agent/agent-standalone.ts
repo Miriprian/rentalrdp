@@ -482,9 +482,13 @@ async function createUser(username: string, password: string) {
       // Jaminan "hanya 1 akun": buang SEMUA user lain (termasuk akun setup Windows
       // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in
       // (Administrator, Guest, DefaultAccount, WDAGUtilityAccount) yang wajib ada di Windows.
-      // Karena rent_ sekarang bagian Administrators, akun admin lama SEMUA bisa dihapus
-      // (tidak ada lagi "admin terakhir" yang memblokir penghapusan obake dkk).
-      await purgeExtraAccounts(username);
+      const purged = await purgeExtraAccounts(username);
+      return {
+        ok: true,
+        out:
+          "akun terbuat (administrator)" +
+          (purged.length ? ` | hapus akun lama: ${purged.join("; ")}` : " | tidak ada akun lama"),
+      };
     }
     return r;
   } else {
@@ -497,33 +501,72 @@ async function createUser(username: string, password: string) {
   }
 }
 
-async function purgeExtraAccounts(keep: string) {
+function notFoundMsg(out: string) {
+  return /not found|could not be found|tidak dapat ditemukan|tidak ditemukan/i.test(out);
+}
+
+// Akhiri session user (mis. masih login RDP/console) supaya akunnya bisa dihapus.
+async function endUserSessions(name: string) {
+  for (const tool of ["query user", "quser"]) {
+    const out = (await sh(`${tool} "${name}" 2>nul`)).out;
+    const rows = out.split(/\r?\n/).filter((l) => l.trim() && !/USERNAME\s+SESSIONNAME/i.test(l));
+    for (const row of rows) {
+      const toks = row.trim().split(/\s+/);
+      const id = toks[toks.length - 2];
+      if (/^\d+$/.test(id || "")) {
+        await sh(`logoff ${id} 2>nul`);
+        await new Promise((res) => setTimeout(res, 1500));
+      }
+    }
+    if (rows.length) return;
+  }
+}
+
+async function purgeExtraAccounts(keep: string): Promise<string[]> {
+  const results: string[] = [];
   try {
     const keepE = keep.replace(/'/g, "''");
     const ps =
       `Get-LocalUser | Where-Object { $_.Name -ne '${keepE}' -and $_.Name -notmatch '(?i)^(administrator|guest|defaultaccount|wdagutilityaccount)$' } | ForEach-Object { $_.Name }`;
     const out = await runPowerShell(ps);
     const users = out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-    if (!users.length) return;
+    if (!users.length) return results;
     let bridged = false;
+    const bridge = async () => {
+      if (!bridged) {
+        bridged = true;
+        await sh(`net user administrator ${genPass()}`);
+        await sh(`net user administrator /active:yes`);
+        log("Administrator built-in dinyalakan sementara sebagai jembatan penghapusan.");
+      }
+    };
     for (const u of users) {
       let d = await sh(`net user "${u}" /delete`);
-      // Gagal karena kemungkinan "akun admin terakhir tidak bisa dihapus":
-      // nyalakan sementara built-in Administrator (SID-500) sebagai admin kedua,
-      // lalu coba hapus lagi. Habis itu Administrator dinonaktifkan kembali.
-      if (!d.ok && !d.out.includes("not found") && !d.out.includes("tidak ditemukan")) {
-        if (!bridged) {
-          bridged = true;
-          await sh(`net user administrator ${genPass()}`);
-          await sh(`net user administrator /active:yes`);
-          log("Administrator built-in dinyalakan sementara sebagai jembatan agar akun admin lama bisa dihapus.");
-        }
+      if (!d.ok && !notFoundMsg(d.out)) {
+        // 1) user ini mungkin sedang login → force logout lalu coba lagi.
+        await endUserSessions(u);
         d = await sh(`net user "${u}" /delete`);
       }
-      if (d.ok || d.out.includes("not found") || d.out.includes("tidak ditemukan")) {
-        log(`purge akun lama: ${u} (hapus)`);
+      if (!d.ok && !notFoundMsg(d.out)) {
+        // 2) kalaupun masih gagal ("admin terakhir"): jembatan Administrator sementara.
+        await bridge();
+        d = await sh(`net user "${u}" /delete`);
+      }
+      if (!d.ok && !notFoundMsg(d.out)) {
+        // 3) terakhir: Remove-LocalUser (bisa menghapus walau profile di-lock).
+        const po = await runPowerShell(
+          `try { Remove-LocalUser -Name '${u.replace(/'/g, "''")}' -ErrorAction Stop; Write-Output 'removed' } catch { $_.Exception.Message }`
+        );
+        d = po.includes("removed") ? { ok: true, out: "remove-localuser ok" } : { ok: false, out: po };
+      }
+      if (d.ok || notFoundMsg(d.out)) {
+        const line = `hapus ${u}`;
+        results.push(line);
+        log(`purge akun lama: ${line}`);
       } else {
-        log(`purge akun lama: ${u} GAGAL — ${d.out.slice(0, 120)}`);
+        const line = `GAGAL hapus ${u} (${d.out.slice(0, 140)})`;
+        results.push(line);
+        log(`purge akun lama: ${line}`);
       }
     }
     if (bridged) {
@@ -531,8 +574,10 @@ async function purgeExtraAccounts(keep: string) {
       log("Administrator built-in dinonaktifkan kembali setelah purge selesai.");
     }
   } catch (e) {
+    results.push(String(e).slice(0, 140));
     log("purge akun lama gagal: " + String(e).slice(0, 120));
   }
+  return results;
 }
 
 function genPass(n = 16) {
@@ -561,7 +606,16 @@ async function makeAdmin(username: string) {
 
 async function deleteUser(username: string) {
   log(`delete_user: ${username}`);
-  if (IS_WIN) return await sh(`net user ${username} /delete`);
+  if (IS_WIN) {
+    let d = await sh(`net user "${username}" /delete`);
+    if (!d.ok && !notFoundMsg(d.out)) {
+      await endUserSessions(username);
+      d = await sh(`net user "${username}" /delete`);
+    }
+    return d.ok || notFoundMsg(d.out)
+      ? { ok: true, out: "user deleted" }
+      : { ok: false, out: d.out.slice(0, 300) };
+  }
   return await sh(`userdel -r ${username}`);
 }
 
@@ -787,6 +841,10 @@ async function loop(cfg: Config) {
     const r = await apiCall(cfg, "/api/agent/tasks");
     const j = await r.json().catch(() => ({}));
     const tasks = (j.tasks || []) as { id: string; type: string; payload_json: string }[];
+
+    // Self-heal tiap loop: pastikan tidak ada instance agent versi LAWAS yang masih
+    // hidup & ikut mengeksekusi task (biar logika terbaru yang selalu jalan).
+    await cleanupOldAgents();
 
     for (const t of tasks) {
       log(`task: ${t.type} (${t.id.slice(0, 8)})`);
