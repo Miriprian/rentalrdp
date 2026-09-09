@@ -4,7 +4,7 @@ REM Cukup double-click file ini. Bun akan dipakai otomatis jika ada, atau portab
 setlocal
 cd /d %~dp0
 echo ============================================
-echo  rentalrdp.com - Install Otomatis
+echo  Rental PC by Miriprian - Install Otomatis
 echo  Bare Metal Rental - 1 folder, install, selesai
 echo ============================================
 

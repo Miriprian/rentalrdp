@@ -1,6 +1,6 @@
-# INSTALL_AWAM — Pindah / Install untuk Orang Awam (Bahasa Indonesia)
+# Panduan Instalasi & Migrasi — Rental PC by Miriprian
 
-Panduan ini untuk yang **tidak ngerti coding**. Ikuti langkah 1-2-3 saja.
+Panduan praktis yang tidak memerlukan pengetahuan pemrograman. Cukup ikuti langkah demi langkah.
 
 ## A. Install baru (laptop/PC/VPS Windows)
 

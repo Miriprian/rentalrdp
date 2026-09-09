@@ -1,7 +1,7 @@
 {
-  "name": "rentalrdp.com",
+  "name": "rental-pc-by-miriprian",
   "version": "1.0.0",
-  "description": "Rental PC Online Bare Metal (fisik beneran, bukan virtual) — Bun + Elysia + Drizzle + PostgreSQL",
+  "description": "Rental PC by Miriprian — Platform sewa PC bare metal (fisik, bukan virtual) — Bun + Elysia + Drizzle + PostgreSQL",
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",
@@ -10,7 +10,7 @@
     "seed": "bun run src/db/seed.ts",
     "setup": "bun install && bun run src/db/migrate.ts && bun run src/db/seed.ts",
     "agent": "bun run agent/agent.ts",
-    "agent:exe": "bun build --compile agent/agent-standalone.ts --outfile agent/rentalrdp-agent.exe",
+    "agent:exe": "bun build --compile agent/agent-standalone.ts --outfile agent/windows-rentalrdp-agent.exe",
     "backup": "bun run scripts/backup.ts",
     "gen:secret": "bun run scripts/gen-secret.ts"
   },

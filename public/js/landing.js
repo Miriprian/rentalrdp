@@ -1,4 +1,4 @@
-/* rentalrdp.com — landing (/) : katalog + auth modal + order modal */
+/* Rental PC by Miriprian — landing (/) : katalog + auth modal + order modal */
 const landing = { pcs: [], plans: [], settings: {}, orderPc: null };
 
 async function loadPublic() {

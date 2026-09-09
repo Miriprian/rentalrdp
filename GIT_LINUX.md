@@ -140,7 +140,7 @@ Hanya kalau kamu ubah `agent/agent-standalone.ts` (logika agent), kamu perlu bui
 ```bash
 # di Windows, di folder project:
 bun run agent:exe
-# → hasil: agent/rentalrdp-agent.exe
+# → hasil: agent/windows-rentalrdp-agent-v1.exe
 # lalu upload file .exe itu ke PC RDP (USB/share).
 ```
 (`.exe` tidak ikut git — jadi tiap ubah agent, rebuild & upload sendiri. Ini memang cara yang benar, karena Linux tak bisa compile `.exe` Windows.)

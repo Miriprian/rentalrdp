@@ -1,4 +1,4 @@
-/* rentalrdp.com — i18n (id/en). Pilih via #langSel di footer, simpan di localStorage("lang"). */
+/* Rental PC by Miriprian — i18n (id/en). Pilih via #langSel di footer, simpan di localStorage("lang"). */
 const I18N = {
   id: {
     nav_katalog: "Katalog",
@@ -14,7 +14,7 @@ const I18N = {
     dash_user: "Dashboard User",
     tagline: "Bare Metal • Perangkat Fisik • <span class=\"text-red-300\">Bukan Virtual / Bukan Proxmox</span>",
     tagline_user: "Dashboard Penyewa",
-    tagline_admin: "rentalrdp.com — khusus admin & superadmin",
+    tagline_admin: "Rental PC by Miriprian — khusus admin & superadmin",
     badge_bare: "🟢 100% BARE METAL — KOMPUTER FISIK • BUKAN VPS • BUKAN PROXMOX VIRTUAL",
     hero_h1: "Sewa PC Fisik Secara Online.<br/><span class=\"text-emerald-400\">Akses RDP Penuh.</span> Siap Digunakan.",
     hero_p: "Seluruh unit merupakan <b>komputer fisik (bare metal)</b> — selama masa sewa, CPU, GPU, RAM, dan SSD sepenuhnya menjadi milik Anda tanpa berbagi sumber daya dengan pengguna lain. Cocok untuk gaming, rendering, bot otomatis, perkantoran, bisnis online, pemrograman, dan emulator.",
@@ -49,7 +49,7 @@ const I18N = {
     faq_a_3: "Boleh, selama legal dan tidak melanggar hukum. Dilarang untuk judi, phising, DDoS, mining ilegal, dan konten ilegal.",
     faq_q_4: "Bagaimana cara memperpanjang sewa?",
     faq_a_4: "Melalui Dashboard → Rental Aktif → Perpanjang, kemudian bayar selisih via WhatsApp admin agar akun tidak terhapus.",
-    footer_copy: "© 2026 rentalrdp.com — Bare metal rental.",
+    footer_copy: "© 2026 Rental PC by Miriprian — Bare metal rental.",
     auth_title: "Masuk",
     tab_login: "Login",
     tab_reg: "Daftar",
@@ -98,7 +98,7 @@ const I18N = {
     hw_detail: "📋 Spek detail",
     // landing.js
     msg_welcome: "Selamat datang, ",
-    wa_text: "Halo rentalrdp.com, saya mau tanya sewa PC bare metal",
+    wa_text: "Halo Rental PC by Miriprian, saya mau tanya sewa PC bare metal",
     // user.js
     tab_orders: "📦 Pesanan Saya",
     tab_rentals: "🔑 RDP Saya",
@@ -205,9 +205,9 @@ const I18N = {
     ln_dark: "🌙 Dark",
     ln_id: "🇮🇩 Bahasa Indonesia",
     ln_en: "🇬🇧 English",
-    doc_title: "rentalrdp.com — Rental PC Bare Metal (Perangkat Fisik)",
-    doc_title_app: "Dashboard — rentalrdp.com",
-    doc_title_admin: "Admin Panel — rentalrdp.com",
+    doc_title: "Rental PC by Miriprian — Sewa PC Bare Metal (Perangkat Fisik)",
+    doc_title_app: "Dashboard — Rental PC by Miriprian",
+    doc_title_admin: "Admin Panel — Rental PC by Miriprian",
   },
   en: {
     nav_katalog: "Catalog",
@@ -223,7 +223,7 @@ const I18N = {
     dash_user: "User Dashboard",
     tagline: "Bare Metal • Physical Devices • <span class=\"text-red-300\">Not Virtual / Not Proxmox</span>",
     tagline_user: "Renter Dashboard",
-    tagline_admin: "rentalrdp.com — admin & superadmin only",
+    tagline_admin: "Rental PC by Miriprian — admin & superadmin only",
     badge_bare: "🟢 100% BARE METAL — PHYSICAL COMPUTER • NOT VPS • NOT PROXMOX VIRTUAL",
     hero_h1: "Rent Physical PCs Online.<br/><span class=\"text-emerald-400\">Full RDP Access.</span> Ready to Use.",
     hero_p: "Every unit is a real <b>physical computer (bare metal)</b> — during your rental, the CPU, GPU, RAM, and SSD are entirely yours, with no sharing of resources with other users. Great for gaming, rendering, bots, office work, e-commerce, coding, and emulators.",
@@ -258,7 +258,7 @@ const I18N = {
     faq_a_3: "Yes, as long as it is legal and obeys the law. Gambling, phishing, DDoS, illegal mining, and illegal content are prohibited.",
     faq_q_4: "How do I extend my rental?",
     faq_a_4: "Via Dashboard → Active Rental → Extend, then pay the difference through admin WhatsApp so your account is not removed.",
-    footer_copy: "© 2026 rentalrdp.com — Bare metal rental.",
+    footer_copy: "© 2026 Rental PC by Miriprian — Bare metal rental.",
     auth_title: "Sign In",
     tab_login: "Login",
     tab_reg: "Register",
@@ -305,7 +305,7 @@ const I18N = {
     status_offline: "Offline",
     hw_detail: "📋 Spec details",
     msg_welcome: "Welcome, ",
-    wa_text: "Hi rentalrdp.com, I'd like to ask about renting a bare metal PC",
+    wa_text: "Hi Rental PC by Miriprian, I'd like to ask about renting a bare metal PC",
     tab_orders: "📦 My Orders",
     tab_rentals: "🔑 My RDP",
     tab_akun: "🔒 My Account",
@@ -409,9 +409,9 @@ const I18N = {
     ln_dark: "🌙 Dark",
     ln_id: "🇮🇩 Bahasa Indonesia",
     ln_en: "🇬🇧 English",
-    doc_title: "rentalrdp.com — Bare Metal PC Rental (Physical)",
-    doc_title_app: "Dashboard — rentalrdp.com",
-    doc_title_admin: "Admin Panel — rentalrdp.com",
+    doc_title: "Rental PC by Miriprian — Bare Metal PC Rental (Physical)",
+    doc_title_app: "Dashboard — Rental PC by Miriprian",
+    doc_title_admin: "Admin Panel — Rental PC by Miriprian",
   },
 };
 

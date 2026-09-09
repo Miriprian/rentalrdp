@@ -1,4 +1,4 @@
-/* rentalrdp.com — helper bersama (no build) */
+/* Rental PC by Miriprian — helper bersama (no build) */
 const $ = (s) => document.querySelector(s);
 const state = { me: null };
 

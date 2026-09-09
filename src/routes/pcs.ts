@@ -54,16 +54,25 @@ export const pcRoutes = new Elysia()
     // Download agent .exe buat dipasang di PC fisik (publik, tidak butuh login)
     const fs = await import("node:fs");
     const path = await import("node:path");
-    const file = path.join(process.cwd(), "agent", "rentalrdp-agent.exe");
+    const agentDir = path.join(process.cwd(), "agent");
+    let fileName = "windows-rentalrdp-agent-v1.exe";
+    try {
+      const found = fs
+        .readdirSync(agentDir)
+        .filter((n: string) => /^windows-rentalrdp-agent-v.*\.exe$/i.test(n))
+        .sort();
+      if (found.length) fileName = found[found.length - 1]!;
+    } catch {}
+    const file = path.join(agentDir, fileName);
     if (!fs.existsSync(file)) {
       set.status = 404;
-      return { ok: false, message: "File agent belum ada di server. Jalankan: bun run agent:exe" };
+      return { ok: false, message: "File agent belum ada di server." };
     }
     const url = new URL(request.url);
     const check = url.searchParams.get("check") === "1";
-    if (check) return { ok: true, file: "rentalrdp-agent.exe", sizeMb: Math.round(fs.statSync(file).size / 1024 / 1024) };
+    if (check) return { ok: true, file: fileName, sizeMb: Math.round(fs.statSync(file).size / 1024 / 1024) };
     set.headers["content-type"] = "application/octet-stream";
-    set.headers["content-disposition"] = 'attachment; filename="rentalrdp-agent.exe"';
+    set.headers["content-disposition"] = `attachment; filename="${fileName}"`;
     set.headers["cache-control"] = "no-store";
     return Bun.file(file);
   })

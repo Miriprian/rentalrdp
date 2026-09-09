@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * rentalrdp.com — Bare Metal Agent
+ * Rental PC by Miriprian — Bare Metal Agent
  * Jalan di tiap PC fisik (Windows / Linux) yang disewakan.
  * Tugas: polling /api/agent/tasks lalu eksekusi create_user / delete_user / restart / shutdown.
  *
@@ -27,7 +27,7 @@ if (!TOKEN) {
   process.exit(1);
 }
 
-console.log(`🤖 rentalrdp agent @ ${HOSTNAME}\n   API: ${API}\n   interval: ${INTERVAL / 1000}s`);
+console.log(`🤖 Rental PC by Miriprian — agent @ ${HOSTNAME}\n   API: ${API}\n   interval: ${INTERVAL / 1000}s`);
 
 const IS_WIN = process.platform === "win32";
 

@@ -1,157 +1,167 @@
-# rentalrdp.com — Rental PC Bare Metal Online
+# Rental PC by Miriprian — Platform Sewa PC Bare Metal
 
-> 🖥️ **Komputer fisik beneran (bare metal). BUKAN VPS, BUKAN Proxmox virtual.**
-> Stack modern: **Bun + Elysia + Drizzle + PostgreSQL** (+ PGlite instan untuk coba-coba).
+Platform e-commerce sewa **komputer fisik (bare metal)** secara online. Setiap unit adalah perangkat sungguhan — bukan VPS, bukan virtualisasi Proxmox — sehingga penyewa mendapat kemampuan penuh CPU, GPU, RAM, dan SSD selama masa sewa.
 
-## 1 folder = langsung jalan
+Dibangun dengan **Bun + Elysia + Drizzle + PostgreSQL**, dilengkapi katalog PC real-time, sistem order & verifikasi pembayaran, dashboard penyewa, panel admin, serta agent yang berjalan di setiap PC fisik.
 
-```
-rentalrdp.com/
-├── install.bat / install.sh   ← double-click / 1 perintah, selesai
-├── start.bat                  ← jalankan server
-├── .env.example / .env
-├── docker-compose.yml         ← produksi Postgres beneran
-├── src/  (Elysia API + security + RBAC)
-├── public/ (website + dashboard, tanpa build)
-├── agent/ (agent bare metal Windows/Linux)
-└── data/  (database instan)
-```
+---
 
-## Cara tercepat (orang awam, Windows)
+## Fitur Utama
 
-1. **Double-click `install.bat`** → tunggu sampai SELESAI.
-2. **Double-click `start.bat`**.
+| Fitur | Keterangan |
+|---|---|
+| **Katalog real-time** | Spek PC (CPU, GPU, RAM, disk, OS) diambil langsung dari mesin oleh agent, bukan diketik manual |
+| **Sewa berdurasi** | Per jam, harian, mingguan, atau bulanan |
+| **Pembayaran** | QRIS / transfer bank; order menunggu verifikasi admin |
+| **Akun RDP otomatis** | Username + password acak terenkripsi (AES-GCM), dibuat & dihapus otomatis mengikuti masa sewa |
+| **Dashboard penyewa** | Lihat status order, kredensial RDP, perpanjang sewa |
+| **Panel admin** | Verifikasi order, kelola PC, rental, user, voucher, pengaturan situs, audit log |
+| **Agent bare metal** | Satu file `.exe` tanpa dependensi; auto-update dari GitHub; auto-start saat boot |
+| **Dua mode database** | PGlite instan (tanpa install) atau PostgreSQL produksi |
+
+---
+
+## Menjalankan Secara Lokal
+
+1. **`install.bat`** — satu kali, menginstal dependensi secara otomatis.
+2. **`start.bat`** — menjalankan server.
 3. Buka **http://localhost:3000**.
-4. Login superadmin: **`obake` / `obake`** → segera **Ganti Password** di Dashboard → Akun Saya.
+4. Login superadmin **`obake` / `obake`**, lalu segera **Ganti Password** di Dashboard → **Akun Saya**.
 
-Itu saja. Tidak perlu install Postgres / Node / build frontend.
+Untuk Linux/VPS, gunakan `install.sh` (dengan Docker/PostgreSQL — lihat bagian berikut).
 
-## Mode database (otomatis)
+---
 
-| `DATABASE_URL` di `.env` | Mode | Cocok untuk |
+## Mode Database
+
+| `DATABASE_URL` | Mode | Penggunaan |
 |---|---|---|
-| `file:./data/rentalrdp-pg` (default) | **Instan (PGlite)** — file lokal, kompatibel Postgres, tanpa install | Coba-coba, migrasi awam, demo |
-| `postgres://user:pass@host:5432/db` | **Produksi (PostgreSQL beneran)** | VPS / server produksi |
+| `file:./data/rentalrdp-pg` (default) | **Instan (PGlite)** — file lokal, kompatibel PostgreSQL, tanpa instalasi | Pengembangan lokal, demo |
+| `postgres://user:pass@host:5432/db` | **PostgreSQL penuh** | Produksi / VPS |
 
-Pindah ke Postgres kapan saja: isi `DATABASE_URL`, jalankan `bun run src/db/migrate.ts` + `bun run src/db/seed.ts`, restart. Schema sama persis.
+Pindah antar mode aman kapan saja: ubah `DATABASE_URL`, lalu jalankan `bun run src/db/migrate.ts` dan `bun run src/db/seed.ts`. Skema kedua mode identik.
 
-### Produksi dengan Docker (Postgres beneran) — paling mudah untuk pemula
-
-> Panduan lengkap langkah-demi-langkah: **`TUTORIAL_LINUX.md`**
+### Produksi dengan Docker (direkomendasikan)
 
 ```bash
-# upload folder ke VPS, lalu di VPS:
+# Upload folder proyek ke VPS, lalu di VPS:
 chmod +x install.sh
-sudo ./install.sh        # 1 perintah: install Docker + buat .env (secret acak) + build + migrate + seed
+sudo ./install.sh
 ```
 
-Sesudahnya server jalan di `http://IP:3000` (login `obake / obake`, ganti password segera). Perintah sehari-hari: `sudo ./manage.sh` (menu status/log/restart/backup), `docker compose logs -f`, `docker compose restart`.
+Skrip tersebut menginstal Docker, membuat `.env` dengan secret acak, membangun image, lalu menjalankan migrasi dan seed. Panduan langkah demi langkah (termasuk domain + HTTPS Caddy) tersedia di **`TUTORIAL_LINUX.md`**.
 
-Untuk produksi sungguhan dengan nama domain + HTTPS, lihat **Bagian 7 TUTORIAL_LINUX.md** (Caddy auto-HTTPS, set `COOKIE_SECURE=true`).
+Operasional harian: `sudo ./manage.sh` (menu status/log/restart/backup), `docker compose logs -f`, `docker compose restart`.
 
-> **Setiap ada update kode:** pakai Git/GitHub (buat di Windows/Linux → push → di VPS `sudo ./update.sh`). Panduan pemula lengkap: **`GIT_LINUX.md`**. Mau sepenuhnya otomatis (build .exe + deploy VPS)? **`LEVEL2_GITHUB_ACTIONS.md`**.
+### Menjaga Kode Tetap Terbaru
 
-## Alur sewa (bare metal)
+- Manual: push dari komputer Anda, lalu di VPS jalankan `sudo ./update.sh`. Panduan Git untuk pemula: **`GIT_LINUX.md`**.
+- Otomatis penuh (build `.exe` agent + deploy VPS via GitHub Actions): **`LEVEL2_GITHUB_ACTIONS.md`**.
 
-1. User daftar → pilih PC fisik → pilih paket (jam/harian/mingguan/bulanan) → bayar QRIS/transfer → kirim bukti.
-2. Admin **Approve** di dashboard → sistem otomatis:
-   - buatkan **user RDP unik + password acak terenkripsi (AES-GCM)**,
-   - kunci PC jadi `rented`,
-   - kirim task `create_user` ke **agent** di PC fisik.
-3. User konek via **Remote Desktop (mstsc / RD Client)** pakai kredensial di Dashboard.
-4. Sewa habis / terminate → PC kembali `available`, task `delete_user` ke agent.
+---
 
-## Katalog = PC real (kosong sampai agent connect)
+## Alur Sewa
 
-Katalog **tidak di-seed dengan PC demo**. PC hanya muncul **setelah** agent terpasang di PC fisik dan connect:
+1. Penyewa mendaftar, memilih PC fisik dan paket durasi, lalu membayar via QRIS/transfer.
+2. Admin **menyetujui** order di dashboard. Sistem otomatis:
+   - membuat **akun RDP unik** dengan password acak terenkripsi (AES-GCM);
+   - mengunci status PC menjadi `rented`;
+   - mengirim task `create_user` ke agent di PC fisik.
+3. Penyewa terhubung via **Remote Desktop** (mstsc / Microsoft RD Client) menggunakan kredensial di dashboard.
+4. Sewa berakhir / dihentikan → PC kembali `available`, task `delete_user` dikirim ke agent.
 
-1. **Dashboard Admin → Kelola PC → ➕ Tambah PC Baru** (cukup 1 klik, kode & token otomatis dibuat). Plaintext token hanya tampil **sekali**; PC bersifat `offline` & tersembunyi sampai agent konek.
-2. Muncul kartu setup → **⬇ Download `rentalrdp-agent.exe`** langsung dari browser + token siap salin.
-3. Copy .exe ke PC fisik, double-click, tempel token pada wizard.
-4. Agent heartbeat → server otomatis mengisi **spek real** (CPU, GPU, RAM, disk, OS) + `last_seen_at`, lalu PC langsung tampil di katalog publik.
-5. Kalau mau isi manual (mis. harga/lokasi/deskripsi) tetap bisa diedit dari Dashboard Admin.
+---
 
-Keuntungan: katalog selalu akurat karena data spek diambil langsung dari mesin asli, bukan diketik manual.
+## Agent Bare Metal
 
-## Agent bare metal (cara termudah — pakai .exe)
+Agent adalah program kecil yang dipasang di setiap PC fisik yang disewakan. Ia mendeteksi spesifikasi mesin, menghubungkannya ke server, dan mengeksekusi perintah (membuat/menghapus akun RDP). **Tidak memerlukan instalasi Bun, Node, atau dependensi apa pun.**
 
-Pasang di tiap PC fisik yang disewakan. **Tidak perlu install Bun/Node apa pun.**
+File rilis mengikuti pola penamaan `<os>-rentalrdp-agent-v<versi>.exe`, misalnya `windows-rentalrdp-agent-v1.exe`.
 
-### Opsi A: 1 file .exe (Windows) — paling mudah
+### Pemasangan (Windows)
 
-```
-agent/rentalrdp-agent.exe   ← satu file saja
-```
+1. Dari **Dashboard Admin → Kelola PC**, buat PC baru (kode & token dibuat otomatis; token hanya tampil sekali).
+2. Unduh `windows-rentalrdp-agent-v1.exe` (tombol unduh berpindah sendiri ke versi terbaru) dan salin ke PC fisik.
+3. **Klik dua kali** file tersebut, lalu ikuti menu:
+   - **D** — isi Server URL (alamat situs) dan Agent Token;
+   - **A** — jalankan agent (konsol menampilkan seluruh aktivitas);
+   - **E** — aktifkan auto-start agar agent berjalan otomatis saat PC boot.
+4. Dalam beberapa detik, PC muncul di katalog publik lengkap dengan spesifikasi aslinya.
 
-1. **Copy `rentalrdp-agent.exe`** ke PC fisik (boleh lewat USB / network share).
-2. **Double-click** file tersebut.
-3. Wizard bertanya:
-   - **Server URL** → mis. `http://IP_SERVER:3000`
-   - **Agent Token** → ambil dari Dashboard Admin → Kelola PC → 🔑 Token Agent
-   - **Polling interval** → tekan Enter (default 15 detik)
-4. Config tersimpan otomatis sebagai `config.json` satu folder dengan .exe.
-5. Jalankan `rentalrdp-agent.exe --install` sekali untuk **auto-start saat PC boot**.
+Menu lengkap: `A` jalankan · `B` hentikan · `C` perbarui dari GitHub · `D` atur token · `E` auto-start · `F` status · `G` reset · `H` hapus (uninstall) · `X` keluar.
 
-Sekali jalan, agent otomatis mendeteksi spek PC (CPU/GPU/RAM/disk/OS) dan mengirimkannya ke server → PC langsung tampil di katalog publik dengan spek asli.
+Opsi baris perintah: `--install` / `-i` (auto-start) · `--uninstall` / `-u` (hapus) · `--update` (periksa pembaruan) · `--silent` (jalankan di latar belakang) · `--version`.
 
-Perintah: `--install` / `-i` (auto-start) • `--uninstall` / `-u` (hapus) • `--silent` (jalan background tanpa wizard).
+> **Auto-update**: agent memeriksa versi yang tertanam di dalam file terhadap versi terkini di GitHub Releases, lalu mengganti dirinya sendiri secara otomatis. Naikkan `agent/AGENT_VERSION` untuk melepas versi baru.
 
-### Opsi B: Source (butuh Bun di PC fisik)
+### Menjalankan dari Source (Alternatif)
 
 ```bash
-bun run agent/agent.ts --api http://SERVER:3000 --token TOKEN_DARI_DASHBOARD
+bun run agent/agent.ts --api https://example.com --token TOKEN_DARI_DASHBOARD
 ```
 
-Ambil token: Dashboard Admin → Kelola PC → 🔑 Token Agent (atau saat tambah PC).
+---
 
-## Akun & role
+## Akun & Peran
 
-- `superadmin` — penuh (kelola admin, settings, semua). Default: **obake / obake** (wajib diganti!).
-- `admin` — verifikasi order, kelola PC/rental (tidak bisa utak-atik akun obake / angkat superadmin).
-- `user` — sewa & lihat RDP sendiri.
+- **superadmin** — akses penuh, termasuk mengelola admin dan pengaturan. Default `obake / obake` (**wajib diganti setelah login pertama**).
+- **admin** — verifikasi order, kelola PC/rental (tidak dapat mengubah akun superadmin).
+- **user** — penyewa yang dapat memesan dan melihat kredensial RDP miliknya.
 
-## Keamanan (production style)
+---
 
-- Hash password **bcrypt (Bun.password)**, lockout setelah 8x gagal.
-- **JWT HS256** di cookie `HttpOnly + SameSite=Lax` (+ `Secure` saat HTTPS), fallback `Authorization: Bearer`.
-- Validasi semua input (Elysia TypeBox), RBAC per-route, rate-limit login & API.
-- Header: `nosniff`, `DENY frame`, `Referrer-Policy`, `Permissions-Policy`, HSTS saat HTTPS.
-- Password RDP dienkripsi **AES-GCM** (`APP_KEY`), token agent disimpan sebagai **SHA-256 hash**.
-- **Audit log** semua aksi penting (login, order, approve, terminate, settings).
-- CORS allowlist via `CORS_ORIGIN`.
+## Keamanan
+
+- Password di-hash dengan **bcrypt**; terkunci setelah 8 kali gagal login.
+- Sesion **JWT HS256** dalam cookie `HttpOnly + SameSite=Lax` (+ `Secure` kala HTTPS), dengan fallback `Authorization: Bearer`.
+- Validasi input menyeluruh (Elysia TypeBox), kontrol akses berbasis peran per-rute, rate-limit pada login dan API.
+- Header keamanan: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, HSTS saat HTTPS.
+- Password RDP terenkripsi **AES-GCM** (`APP_KEY`); token agent disimpan sebagai **SHA-256 hash**.
+- **Audit log** untuk seluruh aksi penting (login, order, approve, terminate, pengaturan).
+- CORS dibatasi melalui `CORS_ORIGIN`.
+
+---
 
 ## Perintah
 
 | Perintah | Fungsi |
 |---|---|
-| `bun install` | install deps |
-| `bun run src/db/migrate.ts` | buat tabel (idempoten) |
-| `bun run src/db/seed.ts` | seed superadmin + plans/settings (PC demo hanya jika `SEED_DEMO_PCS=true`) |
-| `bun run src/index.ts` / `bun run dev` | jalan (watch di dev) |
-| `bun run agent -- --api URL --token T` | agent (alias `bun run agent/agent.ts`) |
-| `bun run backup` | backup folder data + .env ke backups/ |
+| `bun install` | Menginstal dependensi |
+| `bun run src/db/migrate.ts` | Membuat tabel (idempoten) |
+| `bun run src/db/seed.ts` | Mengisi superadmin, paket, dan pengaturan awal (PC demo hanya jika `SEED_DEMO_PCS=true`) |
+| `bun run dev` | Menjalankan server dengan auto-reload |
+| `bun run agent -- --api URL --token T` | Menjalankan agent (alias `bun run agent/agent.ts`) |
+| `bun run backup` | Mencadangkan folder `data` + `.env` ke `backups/` |
+| `bun run gen:secret` | Generate JWT_SECRET / APP_KEY acak |
 
-## Migrasi / pindah server (untuk awam)
+---
 
-Lihat **`INSTALL_AWAM.md`**. Intinya: copy 1 folder → `install.bat` → `start.bat` → selesai. Untuk bawa data: copy folder `data/` + file `.env`.
-
-## Struktur kode
+## Struktur Proyek
 
 ```
 src/
-  index.ts        → Elysia app, helmet, CORS, rate-limit, static
-  env.ts          → validasi env
-  db/index.ts     → koneksi ganda pg/pglite + ensureSchema
-  db/schema.ts    → Drizzle pg-core (users, pcs, plans, orders, rentals, tasks, audit, settings)
-  db/seed.ts      → superadmin obake + 6 PC demo + plans + voucher
-  lib/auth.ts     → JWT (jose), cookie session
-  lib/crypto.ts   → SHA256, random, AES-GCM RDP
-  lib/guard.ts    → currentUser, isAdmin
-  lib/rate-limit.ts
-  lib/utils.ts    → audit, rupiah, orderCode
-  routes/         → auth, pcs, orders, rentals, admin, agent
-public/           → index.html + app.js (SPA tanpa build)
-agent/agent.ts    → agent bare metal
+  index.ts          → Aplikasi Elysia: helmet, CORS, rate-limit, static
+  env.ts            → Validasi & default konfigurasi
+  db/index.ts       → Koneksi ganda pg/pglite + pembuatan skema
+  db/schema.ts      → Skema Drizzle (users, pcs, plans, orders, rentals, tasks, audit, settings)
+  db/seed.ts        → Data awal: superadmin, paket, pengaturan
+  lib/auth.ts       → JWT (jose), sesi cookie
+  lib/crypto.ts     → SHA-256, random, AES-GCM untuk RDP
+  lib/guard.ts      → Otorisasi (currentUser, isAdmin)
+  lib/rate-limit.ts / lib/utils.ts
+  routes/           → auth, pcs, orders, rentals, admin, agent
+public/             → Website + dashboard (SPA tanpa build)
+agent/              → Agent bare metal Windows/Linux
 ```
 
-Lihat juga: `TUTORIAL_LINUX.md`, `GIT_LINUX.md`, `INSTALL_AWAM.md`, `docker-compose.yml`, `Dockerfile`.
+---
+
+## Dokumentasi
+
+| Dokumen | Isi |
+|---|---|
+| `INSTALL_AWAM.md` | Panduan instalasi, migrasi server, dan pemecahan masalah |
+| `TUTORIAL_LINUX.md` | Setup produksi di VPS Linux langkah demi langkah (termasuk HTTPS) |
+| `GIT_LINUX.md` | Panduan Git/GitHub untuk pembaruan kode |
+| `LEVEL2_GITHUB_ACTIONS.md` | Otomatisasi build agent + deploy VPS via GitHub Actions |
+| `docker-compose.yml` / `Dockerfile` | Konfigurasi container untuk produksi |

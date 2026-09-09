@@ -60,7 +60,7 @@ else
 # === rentalrdp.com — PRODUKSI (LXC / tanpa Docker) ===
 PORT=3000
 APP_URL=http://${SERVER_IP}:3000
-APP_NAME=rentalrdp.com
+APP_NAME=Rental PC by Miriprian
 
 # Mode file database (PGlite) — tanpa PostgreSQL. Ringan & aman.
 DATABASE_URL=file:./data/rentalrdp-pg

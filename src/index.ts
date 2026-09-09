@@ -61,7 +61,7 @@ const app = new Elysia()
     set.headers["X-Frame-Options"] = "DENY";
     set.headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     set.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    set.headers["X-Powered-By"] = "rentalrdp.com";
+    set.headers["X-Powered-By"] = "Rental PC by Miriprian";
     if (process.env.NODE_ENV === "production" || env.COOKIE_SECURE) {
       set.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
     }

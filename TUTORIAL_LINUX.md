@@ -110,7 +110,7 @@ Server kamu sekarang bisa diakses dari internet pada `IP:3000`.
 ## Bagian 5 — Pasang PC RDP (yang mau disewakan)
 
 1. Login dashboard admin → **Kelola PC → ➕ Tambah PC Baru**.
-2. Klik **⬇ Download `rentalrdp-agent.exe`** → salin token.
+2. Klik **⬇ Download `windows-rentalrdp-agent-v1.exe` (file terbaru ada di bagian Assets rilis terakhir)** → salin token.
 3. Copy file `.exe` ke PC RDP (USB / share), double-click, tempel token.
 4. Di wizard Server URL isi **`http://IP_SERVER:3000`**.
 5. Agent connect → PC muncul di katalog → **Pasarkan** → bisa disewa.

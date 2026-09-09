@@ -1,4 +1,4 @@
-/* rentalrdp.com — tema flat: dark = hitam murni, light = putih murni. Status: system/dark/light via data-theme di <html>. */
+/* Rental PC by Miriprian — tema flat: dark = hitam murni, light = putih murni. Status: system/dark/light via data-theme di <html>. */
 
 html[data-theme="dark"] {
   color-scheme: dark;

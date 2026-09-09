@@ -23,11 +23,11 @@ export async function runSeed() {
 
   // 1. settings default
   const defaults: Record<string, string> = {
-    site_name: "rentalrdp.com",
+    site_name: "Rental PC by Miriprian",
     tagline: "Rental PC Bare Metal — Komputer Fisik Beneran, Bukan Virtual",
     wa_admin: "6281234567890",
-    qris_text: "QRIS rentalrdp.com — konfirmasi via WhatsApp setelah bayar",
-    payment_bca: "BCA 1234567890 a.n. rentalrdp.com",
+    qris_text: "QRIS Rental PC by Miriprian — konfirmasi via WhatsApp setelah bayar",
+    payment_bca: "BCA 1234567890 a.n. Rental PC by Miriprian",
     notice: "Semua unit adalah BARE METAL (fisik). Bukan VPS / bukan Proxmox virtual. Akses full RDP + IP publik.",
     price_note: "Harga sudah termasuk listrik, internet, dan maintenance.",
   };

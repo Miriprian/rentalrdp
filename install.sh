@@ -67,7 +67,7 @@ else
 
 PORT=3000
 APP_URL=http://${SERVER_IP}:3000
-APP_NAME=rentalrdp.com
+APP_NAME=Rental PC by Miriprian
 
 # Database (Postgres via Docker — JANGAN DIUBAH kecuali pakai DB eksternal)
 DATABASE_URL=postgres://rentalrdp:${POSTGRES_PASS}@db:5432/rentalrdp

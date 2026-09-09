@@ -1,4 +1,4 @@
-/* rentalrdp.com — dashboard penyewa (/app) */
+/* Rental PC by Miriprian — dashboard penyewa (/app) */
 let tab = "orders";
 
 function renderTabs() {

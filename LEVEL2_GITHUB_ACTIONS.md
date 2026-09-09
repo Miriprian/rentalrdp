@@ -13,9 +13,9 @@
 
 File `.github/workflows/` sudah saya buatkan & sudah ada di repo kamu. Jadi:
 
-- Setiap kamu `git push` yang mengubah folder `agent/` → GitHub otomatis build `rentalrdp-agent.exe` di mesin Windows virtual → hasilnya tampil di:
+- Setiap kamu `git push` yang mengubah folder `agent/` → GitHub otomatis build `windows-rentalrdp-agent-v<versi>.exe` di mesin Windows virtual → hasilnya tampil di:
   **https://github.com/Miriprian/rentalrdp/releases**
-  → klik release terbaru → bagian **Assets** → download `rentalrdp-agent.exe`.
+  → klik release terbaru → bagian **Assets** → download `windows-rentalrdp-agent-v<versi>.exe`.
 
 > **Alur memberi .exe ke PC RDP sekarang jadi:** buka Releases → download → USB → pasang. **Tidak perlu buka Windows / compile manual lagi.** 🎉
 

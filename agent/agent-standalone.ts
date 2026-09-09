@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * rentalrdp.com — Standalone Bare Metal Agent
+ * Rental PC by Miriprian — Standalone Bare Metal Agent
  * Satu file .exe, tinggal jalankan. Tidak perlu install Bun/Node apapun.
  *
  * Fitur:
@@ -60,7 +60,7 @@ async function wizard(): Promise<Config> {
   console.clear?.();
   console.log(`
 ╔══════════════════════════════════════════════════╗
-║       rentalrdp.com — Bare Metal Agent Setup     ║
+║  Rental PC by Miriprian — Agent Setup            ║
 ╚══════════════════════════════════════════════════╝
 `);
 
@@ -583,7 +583,7 @@ async function createWindowsAutoStart(): Promise<boolean> {
 
   if (bootOk) log("Auto-start OK: task BOOT SYSTEM (background, anti-stop).");
   if (watchOk) log("Watchdog OK: auto-restart tiap 1 menit kalau agent mati.");
-  if (!bootOk) log("⚠️ Gagal buat task BOOT. Jalankan: rentalrdp-agent.exe --install AS ADMINISTRATOR");
+  if (!bootOk) log(`⚠️ Gagal buat task BOOT. Jalankan ${AGENT_EXE_NAME} --install AS ADMINISTRATOR`);
   if (!watchOk) log("⚠️ Gagal buat watchdog. Agent tetap jalan tapi tanpa auto-recover.");
   return bootOk || watchOk;
 }
@@ -617,7 +617,7 @@ async function autoInstall() {
   }
   if (loadConfig().autostart) return;
   const service = `[Unit]
-Description=RentalRDP Agent
+Description=Rental PC by Miriprian Agent
 After=network.target
 
 [Service]
@@ -657,7 +657,7 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
   const configured = !!(cfgNow.api && cfgNow.token);
   console.log(`
 ┌──────────────────────────────────────────────────────────┐
-│              RentalRDP Agent — MENU                      │
+│ Rental PC by Miriprian — Agent                             │
 ├──────────────────────────────────────────────────────────┤
 │  File         : ${AGENT_EXE_NAME}
 │  Versi        : v${VERSION}
@@ -780,7 +780,7 @@ if (!cfg.api || !cfg.token) {
 
 console.log(`
 ╔══════════════════════════════════════════════════╗
-║  rentalrdp.com — Bare Metal Agent               ║
+║  Rental PC by Miriprian — Agent                  ║
 ║  File  : ${AGENT_EXE_NAME.padEnd(38).slice(0, 38)}║
 ║  Versi : v${VERSION.padEnd(38).slice(0, 38)}║
 ║  Host  : ${HOSTNAME.padEnd(38).slice(0, 38)}║

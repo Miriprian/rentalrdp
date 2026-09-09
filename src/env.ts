@@ -7,7 +7,7 @@ function need(name: string, fallback = ""): string {
 export const env = {
   PORT: Number(need("PORT", "3000")) || 3000,
   APP_URL: need("APP_URL", "http://localhost:3000"),
-  APP_NAME: need("APP_NAME", "rentalrdp.com"),
+  APP_NAME: need("APP_NAME", "Rental PC by Miriprian"),
   DATABASE_URL: need("DATABASE_URL", "file:./data/rentalrdp-pg"),
   JWT_SECRET: need("JWT_SECRET", ""),
   APP_KEY: need("APP_KEY", ""),

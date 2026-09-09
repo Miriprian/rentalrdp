@@ -1,4 +1,4 @@
-/* rentalrdp.com — panel admin (/admin) : order, PC, rental, user, voucher, settings, audit */
+/* Rental PC by Miriprian — panel admin (/admin) : order, PC, rental, user, voucher, settings, audit */
 let tab = "orders";
 
 function renderTabs() {
@@ -138,8 +138,17 @@ window.closeAgentSetup = function () { agentSetupHtml = ""; renderBody(); };
 window.copyAgentToken = function (tkn) {
   navigator.clipboard?.writeText(tkn).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), tkn));
 };
-window.showAgentSetup = function (code, token) {
+async function agentDownload() {
+  try {
+    const j = await (await fetch("https://api.github.com/repos/Miriprian/rentalrdp/releases/latest")).json();
+    const a = (j.assets || []).find((x) => /^windows-rentalrdp-agent-v.*\.exe$/i.test(x.name));
+    if (a) return { url: a.browser_download_url, name: a.name };
+  } catch {}
+  return { url: "https://github.com/Miriprian/rentalrdp/releases/latest", name: "windows-rentalrdp-agent.exe" };
+}
+window.showAgentSetup = async function (code, token) {
   const server = location.origin;
+  const dl = await agentDownload();
   agentSetupHtml = `
     <div class="card rounded-xl p-5 mb-4 border border-emerald-700 text-sm">
       <div class="flex flex-wrap items-center gap-2 mb-3">
@@ -149,7 +158,7 @@ window.showAgentSetup = function (code, token) {
       <div class="grid md:grid-cols-2 gap-4">
         <div class="space-y-2 text-xs text-slate-300">
           <div class="font-bold text-slate-200">${t("setup_1")}</div>
-          <a href="https://github.com/Miriprian/rentalrdp/releases/latest/download/rentalrdp-agent.exe" download="rentalrdp-agent.exe" target="_blank" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">⬇ rentalrdp-agent.exe</a>
+          <a href="${dl.url}" download="${dl.name}" target="_blank" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">⬇ ${dl.name}</a>
           <div class="text-slate-400">${t("setup_1_list")}</div>
           <a href="/api/download/agent" class="text-slate-500 underline">${t("setup_1_alt")}</a>
           <div class="font-bold text-slate-200 pt-2">${t("setup_2")}</div>
