@@ -706,14 +706,110 @@ log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
   }
 }
 
+// ─── MENU INSTALLER INTERAKTIF ───────────────────────────────
+// Keluar dari folder mana pun (Downloads dll) → tampilkan menu "seperti installer software".
+async function interactiveMenu(): Promise<void> {
+  const cfg = loadConfig();
+  const configured = !!(cfg.api && cfg.token);
+  const atInstall = process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase();
+  console.log(`
+┌──────────────────────────────────────────────────────────┐
+│            RentalRDP Agent — INSTALLER                   │
+├──────────────────────────────────────────────────────────┤
+│  Berjalan dari : ${process.execPath}
+│  Lokasi resmi  : ${INSTALL_PATH}
+│  Status        : ${atInstall ? "terpasang di lokasi resmi" : "BELUM terpasang"}`
+    + ` | ${configured ? "sudah setup" : "belum setup"}`
+    + `\n└──────────────────────────────────────────────────────────┘\n`
+  );
+  while (true) {
+    console.log(`
+  1)  PASANG / PERBAIKI   (copy ke ProgramData + auto-start + jalankan)
+  2)  HENTIKAN agent yang sedang berjalan
+  3)  CEK & UPDATE agent dari GitHub
+  4)  SETUP / GANTI token (server URL + token)
+  5)  UNINSTALL           (hapus auto-start & file)
+  6)  Keluar
+`);
+    const ans = (await prompt("  Pilih [1-6], Enter = 1 : ")) || "1";
+    switch (ans.trim().toLowerCase()) {
+      case "1":
+        if (await ensureInstalled()) return; // exe keluar, bat lanjut copy+start (wizard akan terbuka)
+        console.log("  Pasang gagal. Jalankan sebagai ADMINISTRATOR lalu coba lagi.\n");
+        continue;
+      case "2": {
+        console.log("  Menghentikan semua proses agent...");
+        const name = ASSET_NAME.replace(/\.exe$/i, "");
+        await runExe([
+          "powershell",
+          "-NoProfile",
+          "-Command",
+          `Get-Process -Name '${name}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`,
+        ]);
+        console.log("  Selesai — agent dihentikan (jika ada).\n");
+        return;
+      }
+      case "3":
+        if (!configured) {
+          console.log("  Belum setup. Pilih 4 untuk isi server+token, atau 1 untuk pasang dulu.\n");
+          continue;
+        }
+        if (!atInstall) {
+          console.log("  Update efektif setelah TERPASANG. Jalankan dari folder ini tidak meng-update file di ProgramData.\n");
+          continue;
+        }
+        if (await checkAndUpdate(cfg, true)) return;
+        console.log("");
+        continue;
+      case "4": {
+        const c2 = await wizard();
+        if (c2.api && c2.token) {
+          if (atInstall) await autoInstall();
+          console.log("  Setup selesai. Untuk memastikan terpasang & berjalan, pilih 1.\n");
+        }
+        return;
+      }
+      case "5":
+        await autoUninstall();
+        if (atInstall) {
+          console.log("  Menghapus file agent di lokasi resmi...");
+          await runExe(["cmd", "/c", `del /q "${process.execPath}"`]);
+        }
+        return;
+      case "6":
+      case "q":
+      case "x":
+        return;
+      default:
+        console.log("  Pilihan tidak dikenal.\n");
+    }
+  }
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────
 const args = process.argv.slice(2);
+const SILENT = args.includes("--silent") || args.includes("-s");
+if (SILENT) hideConsole();
 
-// Auto-passang: kalau dijalankan dari folder mana pun (Downloads dll), pindah ke
-// C:\ProgramData\agent\rentalrdp-agent.exe lalu jalankan dari sana.
-if (await ensureInstalled()) process.exit(0);
+const atInstall = process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase();
+
+// Instalasi interaktif: dari folder mana pun (mis. Downloads) tanpa config → MENU.
+// Atau paksa dengan --menu. Mode silent/--install/--uninstall TIDAK masuk ke menu.
+if (
+  !SILENT &&
+  !args.includes("--install") &&
+  !args.includes("-i") &&
+  !args.includes("--uninstall") &&
+  !args.includes("-u") &&
+  (args.includes("--menu") || !atInstall)
+) {
+  await interactiveMenu();
+  process.exit(0);
+}
 
 if (args.includes("--install") || args.includes("-i")) {
+  // Pasang dari folder mana pun: relokasi dulu ke ProgramData baru autoInstall di sana.
+  if (await ensureInstalled()) process.exit(0);
   await autoInstall();
   process.exit(0);
 }
@@ -727,9 +823,6 @@ if (args.includes("--update")) {
   await checkAndUpdate(loadConfig(), true);
   process.exit(0);
 }
-
-const SILENT = args.includes("--silent") || args.includes("-s");
-if (SILENT) hideConsole();
 
 // Interaktif & config sudah ada → tawarkan update dari GitHub sebelum jalan normal.
 // (Diizinkan WALAU agent lain masih berjalan — updater akan taskkill + replace + restart sendiri.)
