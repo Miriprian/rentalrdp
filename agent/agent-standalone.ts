@@ -8,12 +8,14 @@
  *   - Auto-create user Windows/Linux saat order di-approve
  *   - Auto-delete user saat rental expired/terminated
  *   - Heartbeat ke server tiap 15 detik
+ *   - Tes kecepatan internet otomatis (speedtest.net) tiap boot & tiap 6 jam
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
  *   - Jalankan dengan --install untuk auto-start, --uninstall untuk hapus
  */
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { connect } from "node:net";
 import { hostname } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
 
@@ -429,6 +431,169 @@ async function apiCall(cfg: Config, path: string, opts?: RequestInit) {
 
 let detectedSpecs: Record<string, unknown> | null = null;
 
+// ─── TES KECEPATAN INTERNET (protokol speedtest.net / Ookla) ──
+// Murni JS (fetch + node:net), tanpa dependency native → aman di-bundle jadi .exe.
+// Alur: ambil daftar server Ookla (engine=js) → pilih yang terjangkau → ukur
+// ping (TCP RTT), download (file uji Ookla), upload (POST ke upload.php).
+type NetResult = { downloadMbps: number; uploadMbps: number; pingMs: number; testedAt: string };
+const NET_CACHE = existsSync(join(EXE_DIR, "speed.json")) ? join(EXE_DIR, "speed.json") : join(process.cwd(), "speed.json");
+const SPEED_INTERVAL_MS = 6 * 60 * 60 * 1000; // tes ulang otomatis tiap 6 jam
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0";
+let netState: NetResult | null = loadNetState();
+let netBusy = false;
+
+function loadNetState(): NetResult | null {
+  try {
+    if (existsSync(NET_CACHE)) {
+      const j = JSON.parse(readFileSync(NET_CACHE, "utf8"));
+      if (j && typeof j.downloadMbps === "number") return j as NetResult;
+    }
+  } catch {}
+  return null;
+}
+
+function saveNetState(r: NetResult) {
+  try { writeFileSync(NET_CACHE, JSON.stringify(r)); } catch {}
+}
+
+function netBodyNet(): Record<string, unknown> {
+  if (!netState) return {};
+  return {
+    netDownloadMbps: netState.downloadMbps,
+    netUploadMbps: netState.uploadMbps,
+    netPingMs: netState.pingMs,
+    netTestedAt: netState.testedAt,
+  };
+}
+
+async function fetchOoklaServers(): Promise<{ url: string; host: string; name: string }[]> {
+  try {
+    const r = await fetch("https://www.speedtest.net/api/js/servers?engine=js&limit=8", { headers: { "User-Agent": UA } });
+    if (!r.ok) return [];
+    const list = (await r.json()) as { url?: string; host?: string; name?: string }[];
+    return list
+      .map((s) => ({ url: s.url || "", host: s.host || "", name: s.name || "Ookla" }))
+      .filter((s) => /^https?:\/\//i.test(s.url));
+  } catch {
+    return [];
+  }
+}
+
+function parseNetHost(h: string): { host: string; port: number } {
+  const i = h.lastIndexOf(":");
+  if (i > 0) {
+    const p = parseInt(h.slice(i + 1), 10);
+    if (p > 0) return { host: h.slice(0, i), port: p };
+  }
+  return { host: h, port: 80 };
+}
+
+function measurePingMs(host: string, port: number): Promise<number> {
+  return new Promise((res) => {
+    const t0 = performance.now();
+    const s = connect(port, host);
+    const done = (v: number) => { try { s.destroy(); } catch {} res(v); };
+    const to = setTimeout(() => done(0), 4000);
+    s.setTimeout(4000, () => done(0));
+    s.once("connect", () => { clearTimeout(to); done(performance.now() - t0); });
+    s.once("error", () => { clearTimeout(to); done(0); });
+  });
+}
+
+async function fetchBytes(url: string, timeoutMs: number): Promise<{ bytes: number; ms: number } | null> {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const t0 = performance.now();
+    const r = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": UA } });
+    if (!r.ok || !r.body) return null;
+    let bytes = 0;
+    try {
+      const reader = r.body.getReader();
+      for (;;) { const { done, value } = await reader.read(); if (done) break; bytes += value.length; }
+    } catch {}
+    return { bytes, ms: performance.now() - t0 };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(to);
+  }
+}
+
+async function doNetDownload(baseUrl: string): Promise<number> {
+  let best = 0;
+  const deadline = Date.now() + 25000;
+  for (const n of [1000, 2500, 3500, 5000]) {
+    if (Date.now() > deadline) break;
+    const url = baseUrl.replace(/\/[^/]*$/, `/random${n}x${n}.jpg`);
+    const r = await fetchBytes(url, 20000);
+    if (r && r.ms >= 300) best = Math.max(best, (r.bytes * 8 * 1000) / 1e6 / r.ms);
+  }
+  return Math.round(best * 10) / 10;
+}
+
+async function doNetUpload(url: string): Promise<number> {
+  let best = 0;
+  const deadline = Date.now() + 20000;
+  for (const mb of [0.5, 1, 2, 4, 8, 16, 32]) {
+    if (Date.now() > deadline) break;
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const buf = new Uint8Array(Math.floor(mb * 1024 * 1024)).fill(7);
+      const t0 = performance.now();
+      const r = await fetch(url, {
+        method: "POST",
+        body: buf,
+        signal: ctrl.signal,
+        headers: { "User-Agent": UA, "Content-Type": "application/octet-stream" },
+      });
+      const ms = performance.now() - t0;
+      if (r.ok && ms >= 200) best = Math.max(best, (buf.length * 8 * 1000) / 1e6 / ms);
+    } catch {}
+    finally { clearTimeout(to); }
+  }
+  return Math.round(best * 10) / 10;
+}
+
+async function runSpeedTest() {
+  if (netBusy) return;
+  netBusy = true;
+  try {
+    log("tes kecepatan internet (speedtest.net) dimulai...");
+    const servers = await fetchOoklaServers();
+    let srv: { url: string; host: string; name: string } | null = null;
+    let ping = 0;
+    for (const s of servers.slice(0, 6)) {
+      const hp = parseNetHost(s.host || `${new URL(s.url).hostname}:8080`);
+      const pings: number[] = [];
+      for (let i = 0; i < 5; i++) { const p = await measurePingMs(hp.host, hp.port); if (p > 0) pings.push(p); }
+      if (pings.length) {
+        pings.sort((a, b) => a - b);
+        ping = pings[Math.floor((pings.length - 1) / 2)];
+        srv = s;
+        break;
+      }
+    }
+    if (!srv || !ping) { log("tes kecepatan: tidak ada server Ookla yang terjangkau."); return; }
+    const dl = await doNetDownload(srv.url);
+    const ul = await doNetUpload(srv.url);
+    netState = { downloadMbps: dl, uploadMbps: ul, pingMs: Math.round(ping * 10) / 10, testedAt: new Date().toISOString() };
+    saveNetState(netState);
+    log(`kecepatan internet: ${dl}↓ / ${ul}↑ Mbps • ping ${Math.round(ping)}ms (${srv.name})`);
+  } catch (e) {
+    log(`tes kecepatan gagal: ${String(e).slice(0, 120)}`);
+  } finally {
+    netBusy = false;
+  }
+}
+
+function maybeSpeedTest() {
+  if (netBusy) return;
+  if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS) return;
+  void runSpeedTest();
+}
+
 async function heartbeat(cfg: Config) {
   const first = !detectedSpecs;
   if (!detectedSpecs) {
@@ -443,7 +608,7 @@ async function heartbeat(cfg: Config) {
   }
   const r = await apiCall(cfg, "/api/agent/heartbeat", {
     method: "POST",
-    body: JSON.stringify(detectedSpecs),
+    body: JSON.stringify({ ...detectedSpecs, ...netBodyNet() }),
   });
   if (first) {
     const hw = (detectedSpecs.hw || {}) as Record<string, unknown>;
@@ -461,6 +626,9 @@ async function loop(cfg: Config) {
   } catch (e) {
     log(`heartbeat error: ${String(e).slice(0, 80)}`);
   }
+
+  // Tes kecepatan internet (satu kali saat boot, lalu tiap 6 jam) — background
+  maybeSpeedTest();
 
   // Poll tasks
   try {

@@ -11,6 +11,7 @@ Dibangun dengan **Bun + Elysia + Drizzle + PostgreSQL**, dilengkapi katalog PC r
 | Fitur | Keterangan |
 |---|---|
 | **Katalog real-time** | Spek PC (CPU, GPU, RAM, disk, OS) diambil langsung dari mesin oleh agent, bukan diketik manual |
+| **Tes kecepatan internet** | Agent otomatis mengukur kecepatan (speedtest.net) tiap boot & tiap 6 jam; hasil download/upload/ping tampil di katalog & panel admin |
 | **Sewa berdurasi** | Per jam, harian, mingguan, atau bulanan |
 | **Pembayaran** | QRIS / transfer bank; order menunggu verifikasi admin |
 | **Akun RDP otomatis** | Username + password acak terenkripsi (AES-GCM), dibuat & dihapus otomatis mengikuti masa sewa |

@@ -27,6 +27,7 @@ function renderPcs() {
       <div class="font-extrabold">${esc(p.name)}</div>
       <div class="text-[11px] text-slate-400">📍 ${esc(p.location)} • ${esc(p.os)} • <span class="text-emerald-300 font-bold">BARE METAL</span></div>
       ${p.motherboard ? `<div class="text-[11px] text-slate-400 mt-1">🖥️ ${esc(p.motherboard)}</div>` : ""}
+      ${netSpeedHtml(p)}
       <div class="grid grid-cols-2 gap-1 mt-3 text-xs text-slate-300">
         <div>🧠 ${esc(p.cpu)}</div><div>🎮 ${esc(p.gpu)}</div>
         <div>💾 ${p.ram_gb}GB RAM</div><div>🗄️ ${p.storage_gb}GB ${esc(p.storage_type)}</div>

@@ -67,6 +67,14 @@ function hwDetailHtml(p) {
   return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">${t("hw_detail")}</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
 }
 
+// Kecepatan internet (kolom net_* dari agent, sumber: speedtest.net)
+function netSpeedHtml(p) {
+  const dl = Number(p.net_download_mbps || 0), ul = Number(p.net_upload_mbps || 0), ping = Number(p.net_ping_ms || 0);
+  if (!dl && !ul) return "";
+  const when = p.net_tested_at ? " · " + new Date(p.net_tested_at).toLocaleString(langState.lang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  return `<div class="text-[11px] text-emerald-300 mt-1">${t("net_speed", { down: dl || "-", up: ul || "-", ping: ping ? ping : "-" })}${when}</div>`;
+}
+
 async function loadMe() {
   const r = await api("/api/auth/me");
   state.me = r.ok ? r.user : null;

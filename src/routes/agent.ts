@@ -53,6 +53,25 @@ export const agentRoutes = new Elysia()
       params.push(JSON.stringify(b.hw).slice(0, 8000));
       sets.push(`hw_json=$${params.length + 1}`);
     }
+    // Hasil tes kecepatan internet dari agent (sumber: speedtest.net)
+    const netNums: Array<[string, unknown]> = [
+      ["net_download_mbps", b.netDownloadMbps],
+      ["net_upload_mbps", b.netUploadMbps],
+      ["net_ping_ms", b.netPingMs],
+    ];
+    for (const [col, val] of netNums) {
+      if (typeof val === "number" && Number.isFinite(val) && val >= 0) {
+        params.push(Math.round(Number(val) * 100) / 100);
+        sets.push(`${col}=$${params.length + 1}`);
+      }
+    }
+    if (typeof b.netTestedAt === "string") {
+      const d = new Date(b.netTestedAt);
+      if (!Number.isNaN(d.getTime())) {
+        params.push(d.toISOString());
+        sets.push(`net_tested_at=$${params.length + 1}`);
+      }
+    }
     await q(`UPDATE pcs SET ${sets.join(", ")} WHERE id=$1`, [pc.id, ...params]);
     return {
       ok: true,

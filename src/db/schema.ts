@@ -3,6 +3,7 @@ import {
   text,
   integer,
   boolean,
+  real,
   timestamp,
   pgEnum,
 } from "drizzle-orm/pg-core";
@@ -64,6 +65,10 @@ export const pcs = pgTable("pcs", {
   gpu: text("gpu").notNull().default(""),
   motherboard: text("motherboard").notNull().default(""),
   hwJson: text("hw_json").notNull().default("{}"),
+  netDownloadMbps: real("net_download_mbps").notNull().default(0),
+  netUploadMbps: real("net_upload_mbps").notNull().default(0),
+  netPingMs: real("net_ping_ms").notNull().default(0),
+  netTestedAt: timestamp("net_tested_at", { withTimezone: true }),
   ramGb: integer("ram_gb").notNull().default(16),
   storageGb: integer("storage_gb").notNull().default(512),
   storageType: text("storage_type").notNull().default("NVMe SSD"),

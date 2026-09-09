@@ -191,6 +191,10 @@ CREATE INDEX IF NOT EXISTS idx_pcs_status ON pcs(status);
 -- Migrasi kolom detail hardware untuk DB yang sudah terlanjur dibuat
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS motherboard TEXT NOT NULL DEFAULT '';
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS hw_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_download_mbps REAL NOT NULL DEFAULT 0;
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_upload_mbps REAL NOT NULL DEFAULT 0;
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_ping_ms REAL NOT NULL DEFAULT 0;
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_tested_at TIMESTAMPTZ;
 
 -- Migrasi timezone: TIMESTAMP (naif) -> TIMESTAMPTZ (ber-offset UTC)
 -- Nilai lama ditafsirkan sebagai UTC agar tampilan nanti di-localize ke jam pengguna.

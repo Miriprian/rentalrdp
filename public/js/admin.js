@@ -82,7 +82,7 @@ async function adminPcsHtml() {
           <span class="ml-auto text-xs">${esc(p.ip_public || "-")} • ${t("last_seen")}${p.last_seen_at ? new Date(p.last_seen_at).toLocaleString("id-ID") : "-"}</span>
         </div>
         <div class="mt-1 text-slate-300">${p.cpu ? esc(p.cpu) + " / " + esc(p.gpu) + " / " + p.ram_gb + "GB / " + p.storage_gb + "GB " + esc(p.storage_type) + " / " + esc(p.os) : esc(p.name) + t("spek_wait")}</div>
-        ${p.motherboard ? `<div class="mt-0.5 text-[11px] text-slate-400">🖥️ ${esc(p.motherboard)}</div>` : ""}${hwDetailHtml(p)}
+        ${p.motherboard ? `<div class="mt-0.5 text-[11px] text-slate-400">🖥️ ${esc(p.motherboard)}</div>` : ""}${netSpeedHtml(p)}${hwDetailHtml(p)}
         <div class="flex flex-wrap gap-2 mt-3 text-xs">
           <select id="st-${p.id}" class="px-3 py-2 rounded-lg bg-slate-800"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>
           <input id="ip-${p.id}" value="${esc(p.ip_public || "")}" placeholder="IP publik" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700"/>

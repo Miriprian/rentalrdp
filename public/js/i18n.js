@@ -96,6 +96,7 @@ const I18N = {
     status_maintenance: "Maintenance",
     status_offline: "Offline",
     hw_detail: "📋 Spek detail",
+    net_speed: "🌐 Internet: {down}↓ / {up}↑ Mbps • ping {ping}ms",
     // landing.js
     msg_welcome: "Selamat datang, ",
     wa_text: "Halo Rental PC by Miriprian, saya mau tanya sewa PC bare metal",
@@ -304,6 +305,7 @@ const I18N = {
     status_maintenance: "Maintenance",
     status_offline: "Offline",
     hw_detail: "📋 Spec details",
+    net_speed: "🌐 Internet: {down}↓ / {up}↑ Mbps • ping {ping}ms",
     msg_welcome: "Welcome, ",
     wa_text: "Hi Rental PC by Miriprian, I'd like to ask about renting a bare metal PC",
     tab_orders: "📦 My Orders",
