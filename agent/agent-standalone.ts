@@ -163,12 +163,16 @@ function cmpVersion(a: string, b: string): number {
 }
 
 async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
-  const exePath = process.execPath;
-  // Staging exe baru di folder yang SAMA dengan exe (exePath + ".new") — BUKAN folder .update.
+  const oldPath = process.execPath;
+  // Nama file baru = nama asset versi terbaru (mis. windows-rentalrdp-agent-v6.exe),
+  // BUKAN nama lama — hasil update selalu pakai nama versi terbaru.
+  const newName = decodeURIComponent(rel.url.split("/").pop() || AGENT_EXE_NAME);
+  const newPath = join(EXE_DIR, newName);
+  // Staging exe baru di folder yang SAMA dengan exe (newPath + ".new") — BUKAN folder .update.
   // Batch updater dipisah sebagai file tersendiri di %TEMP% (tidak menyatu dengan exe):
-  // bat mematikan agent → menimpa exe asli → mulai ulang → lalu menghapus dirinya sendiri.
-  // Hasil akhir: folder exe tetap bersih, cukup 1 file exe yang sama (ter-replace).
-  const staging = exePath + ".new";
+  // bat mematikan agent → me-rename ke nama versi terbaru → hapus exe lama → mulai ulang
+  // → lalu menghapus dirinya sendiri. Hasil akhir: folder exe bersih, hanya 1 file terbaru.
+  const staging = newPath + ".new";
   const updater = join(tmpdir(), "rentalrdp-apply-update.bat");
   try {
     try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
@@ -181,14 +185,16 @@ async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> 
     if (!r.ok) throw new Error("unduh gagal (HTTP " + r.status + ")");
     const buf = await r.arrayBuffer();
     writeFileSync(staging, Buffer.from(buf));
-    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti ${AGENT_EXE_NAME} & restart otomatis...`);
+    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti ke ${newName} & restart otomatis...`);
+    const delOld = oldPath.toLowerCase() !== newPath.toLowerCase() ? `if /i not "${oldPath}"=="${newPath}" del /q "${oldPath}" >nul 2>&1\r\n` : "";
     const bat =
       `@echo off\r\nsetlocal\r\ntaskkill /f /im ${AGENT_EXE_NAME} >nul 2>&1\r\n` +
       `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
-      `move /y "${staging}" "${exePath}" >nul 2>&1\r\n` +
-      `if exist "${staging}" copy /y "${staging}" "${exePath}" >nul\r\n` +
+      `move /y "${staging}" "${newPath}" >nul 2>&1\r\n` +
+      `if exist "${staging}" copy /y "${staging}" "${newPath}" >nul\r\n` +
       `del /q "${staging}" >nul 2>&1\r\n` +
-      `start "" "${exePath}" --silent\r\n` +
+      delOld +
+      `start "" "${newPath}" --silent\r\n` +
       `del /q "%~f0" >nul 2>&1\r\n`;
     writeFileSync(updater, bat, "utf8");
     Bun.spawn(["cmd", "/c", `"${updater}"`], { windowsHide: true });
@@ -852,6 +858,28 @@ WantedBy=multi-user.target`;
   }
 }
 
+async function syncAutoStartPath() {
+  if (!IS_WIN) return;
+  const cfg = loadConfig();
+  if (!cfg.autostart) return;
+  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
+  // watchdog.bat menunjuk nama exe runtime — bisa berubah saat update rename file.
+  try {
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+  } catch {}
+  const hasBoot = await schtasksHas("rentalrdp-agent");
+  if (hasBoot) {
+    if (await bootTaskMatchesCurrent()) return;
+    // Task lama menunjuk exe lama → perbarui ke exe sekarang (kalau bukan admin, skip diam-diam;
+    // watchdog tetap pakai nama baru sehingga recovery tetap jalan).
+    await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", `"${process.execPath}" --silent`, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+    await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent-watchdog", "/tr", `"${WATCH}"`, "/sc", "minute", "/mo", "1", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+  } else {
+    // Fallback login (non-admin): perbarui HKCU Run ke exe sekarang.
+    await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/d", `"${process.execPath}" --silent`, "/f"]);
+  }
+}
+
 // ─── MENU INSTALLER INTERAKTIF ───────────────────────────────
 // Menu minimal; console TETAP TERBUKA sampai user memilih Keluar.
 // Agent HANYA bisa berhenti otomatis saat proses update (applyUpdate men-taskkill
@@ -964,4 +992,7 @@ console.log(`
 `);
 
 loop(cfg);
+// Nama file bisa berubah saat update (rename ke versi terbaru) → samakan lagi
+// boot task / watchdog / HKCU Run biar tetap menunjuk exe yang sekarang.
+await syncAutoStartPath();
 setInterval(() => loop(cfg), cfg.interval * 1000);
