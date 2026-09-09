@@ -217,11 +217,24 @@ window.terminateRental = async function (id) {
 async function adminRentAccHtml() {
   const r = await api("/api/admin/rent-accounts");
   const rows = r.data || [];
+  // Kelompokkan per PC: 1 akun aktif (kiri) + 1 akun nonaktif terakhir (kanan, dalam baris/kolom sama).
+  const perPc = new Map();
+  for (const a of rows) {
+    const k = a.pc_id || a.pc_code || a.username;
+    if (!perPc.has(k)) perPc.set(k, { active: null, deleted: null });
+    const g = perPc.get(k);
+    if (a.status === "active" && (!g.active || new Date(a.created_at) > new Date(g.active.created_at))) g.active = a;
+    else if (a.status === "deleted" && (!g.deleted || new Date(a.created_at) > new Date(g.deleted.created_at))) g.deleted = a;
+  }
+  const groups = [...perPc.values()].filter((g) => g.active || g.deleted);
   return `<div class="card rounded-xl p-4 mb-3 text-sm">${t("rent_acc_hint")}</div>
-  <div class="grid gap-2">` + (rows.length ? rows.map((a) => `
-    <div class="card rounded-xl p-4 text-sm">
-      <div class="flex flex-wrap gap-2 items-center"><b class="mono text-emerald-300">${esc(a.username)}</b>
-        <span class="text-xs px-2 py-1 rounded ${a.status === "active" ? "bg-emerald-700" : "bg-red-800"}">${esc(a.status)}</span>
+  <div class="grid gap-2">` + (groups.length ? groups.map((g) => {
+    const a = g.active;
+    let html = `<div class="card rounded-xl p-4 text-sm flex flex-wrap gap-4">`;
+    html += `<div class="flex-1 min-w-[260px]">`;
+    if (a) {
+      html += `<div class="flex flex-wrap gap-2 items-center"><b class="mono text-emerald-300">${esc(a.username)}</b>
+        <span class="text-xs px-2 py-1 rounded bg-emerald-700">${esc(a.status)}</span>
         <span class="ml-auto text-xs text-slate-400">${esc(a.pc_code)} • ${new Date(a.created_at).toLocaleString("id-ID")}</span>
       </div>
       <div class="mono text-xs text-slate-300 mt-1">${t("host_local")} : ${esc(a.pc_ip_local || "-")}:${esc(a.pc_rdp_port || 3389)}</div>
@@ -230,8 +243,25 @@ async function adminRentAccHtml() {
       <div class="mono text-xs text-slate-200">${t("pass")} : ${esc(a.password)}</div>
       <div class="text-xs mt-1">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
       ${a.task_status === "failed" ? `<div class="text-xs text-red-300 mt-1">${String(a.task_result || "").includes("14 characters") ? t("task_fail_shortpass") : t("task_fail_hint")}</div>` : ""}
-      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy_all")}</button>
-    </div>`).join("") : `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("rent_acc_empty")}</div>`) + `</div>`;
+      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy_all")}</button>`;
+    } else {
+      html += `<div class="text-sm text-slate-500">${t("rent_acc_empty")}</div>`;
+    }
+    html += `</div>`;
+    if (g.deleted) {
+      const d = g.deleted;
+      html += `<div class="border-l border-slate-700 pl-4 min-w-[240px] opacity-70">
+        <div class="flex flex-wrap gap-2 items-center"><b class="mono text-slate-400">${esc(d.username)}</b>
+          <span class="text-xs px-2 py-1 rounded bg-red-950 text-red-300">${esc(d.status)}</span>
+          <span class="ml-auto text-xs text-slate-500">${new Date(d.created_at).toLocaleString("id-ID")}</span>
+        </div>
+        <div class="mono text-xs text-slate-500 mt-1">${t("user")} : ${esc(d.username)}</div>
+        <div class="mono text-xs text-slate-500">${t("pass")} : ${esc(d.password)}</div>
+        <div class="text-[11px] text-slate-500 mt-1">${t("rent_acc_prev")}</div>
+      </div>`;
+    }
+    return html + `</div>`;
+  }).join("") : `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("rent_acc_empty")}</div>`) + `</div>`;
 }
 function taskBadge(status, result, pcStatus) {
   if (status === "done") return `<span class="px-2 py-0.5 rounded bg-emerald-700 text-[11px] font-bold">✅ ${t("task_done")}</span>`;

@@ -254,7 +254,6 @@ export const pcRoutes = new Elysia()
        FROM rent_accounts a
        LEFT JOIN agent_tasks t ON t.id = a.task_id
        LEFT JOIN pcs p ON p.id = a.pc_id
-       WHERE a.status = 'active'
        ORDER BY a.created_at DESC LIMIT 200`
     );
     for (const r of rows as { password_enc: string }[]) {
