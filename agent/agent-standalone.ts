@@ -10,7 +10,6 @@
  *   - Heartbeat ke server tiap 15 detik
  *   - Tes kecepatan internet otomatis (speedtest.net) tiap boot & tiap 6 jam
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
- *   - Jalankan dengan --install untuk auto-start, --uninstall untuk hapus
  */
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
@@ -805,21 +804,12 @@ WantedBy=multi-user.target`;
   }
 }
 
-async function autoUninstall() {
-  if (IS_WIN) {
-    const r1 = await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent", "/f"]);
-    const r2 = await runExe(["schtasks", "/delete", "/tn", "rentalrdp-agent-watchdog", "/f"]);
-    const r3 = await runExe(["reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/f"]);
-    try { unlinkSync(join(EXE_DIR, "rentalrdp-agent-watchdog.bat")); } catch {}
-    log(r1.ok || r2.ok || r3.ok ? "Auto-start dihapus (Boot task + Watchdog + Registry)." : "Belum ada auto-start (atau butuh Administrator).");
-  } else {
-    const r = await sh("systemctl disable --now rentalrdp-agent && rm -f /etc/systemd/system/rentalrdp-agent.service && systemctl daemon-reload");
-    log(r.ok ? "Systemd service dihapus." : "Gagal hapus systemd service. Jalankan dengan sudo.");
-  }
-}
-
 // ─── MENU INSTALLER INTERAKTIF ───────────────────────────────
-// Menu interaktif; console TETAP TERBUKA setelah aksi sampai user memilih Keluar.
+// Menu minimal; console TETAP TERBUKA sampai user memilih Keluar.
+// Agent HANYA bisa berhenti otomatis saat proses update (applyUpdate men-taskkill
+// semua instance lalu restart versi baru --silent). Tidak ada opsi stop / uninstall /
+// reset — supaya penyewa/hacker tak bisa mematikan agent dan memakai RDP gratis
+// tanpa terhitung waktu.
 async function interactiveMenu(): Promise<"run" | "exit"> {
   const cfgNow = loadConfig();
   const configured = !!(cfgNow.api && cfgNow.token);
@@ -829,76 +819,38 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
 ├──────────────────────────────────────────────────────────┤
 │  File         : ${AGENT_EXE_NAME}
 │  Versi        : v${VERSION}
-│  Config       : ${CONFIG_FILE}
-│  Status       : ${configured ? "sudah setup" : "BELUM setup"}`
-    + ` | auto-start ${cfgNow.autostart ? "AKTIF" : "nonaktif"}`
-    + `\n└──────────────────────────────────────────────────────────┘\n`
-  );
+│  Server       : ${configured ? cfgNow.api : "(belum diisi)"}
+│  Auto-start   : ${cfgNow.autostart ? "AKTIF (BOOT + watchdog)" : "nonaktif"}
+└──────────────────────────────────────────────────────────┘
+`);
   while (true) {
     console.log(`
-  A)  JALANKAN agent (foreground)
-  B)  HENTIKAN agent yang sedang berjalan
-  C)  UPDATE agent dari GitHub (cek versi terbaru)
-  D)  SETUP / GANTI TOKEN (server URL + token)
-  E)  AUTO-START AKTIF (BOOT + watchdog)
-  F)  STATUS / CEK proses & config
-  G)  RESET (hapus config + auto-start, mulai dari awal)
-  H)  UNINSTALL (hapus auto-start saja)
-  X)  KELUAR
+  1)  Install / Ganti Token  (server URL + token + auto-start)
+  2)  Update Agent           (unduh versi terbaru → agent berhenti & restart otomatis)
+  3)  Keluar
 `);
-    const ans = ((await prompt("  Pilih [A-H/X], Enter = A : ")) || "a").trim().toLowerCase();
+    const ans = ((await prompt("  Pilih [1/2/3], Enter = 1 : ")) || "1").trim();
     switch (ans) {
-      case "a":
-        if (!configured) {
-          const c2 = await wizard();
-          if (!c2.api || !c2.token) {
-            console.log("  Setup tidak lengkap → kembali ke menu.\n");
-            continue;
-          }
-        }
-        return "run";
-      case "b": {
-        console.log("  Menghentikan semua proses agent...");
-        const ps = `Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`;
-        await runExe(["powershell", "-NoProfile", "-Command", ps]);
-        console.log("  Selesai — agent dihentikan. Jendela tetap terbuka.\n");
-        continue;
-      }
-      case "c":
-        if (!configured) console.log("  Belum setup. Pilih D untuk isi server+token, lalu C lagi.\n");
-        else if (await checkAndUpdate(loadConfig(), true)) return "exit";
-        console.log("");
-        continue;
-      case "d": {
+      case "1": {
         const c2 = await wizard();
-        if (c2.api && c2.token) console.log("  Token tersimpan. Pilih A untuk menjalankan agent.\n");
-        continue;
-      }
-      case "e":
+        if (!c2.api || !c2.token) {
+          console.log("  Setup tidak lengkap → coba lagi.\n");
+          continue;
+        }
         await autoInstall();
         console.log("");
-        continue;
-      case "f": {
-        const ck = await runExe(["powershell", "-NoProfile", "-Command", `(Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue | Measure-Object).Count`]);
-        const n = parseInt((ck.out.match(/\d+/) || ["0"])[0], 10);
-        console.log(`  Proses "${PROC_BASE}" : ${n} instance berjalan`);
-        console.log(`  Config       : ${existsSync(CONFIG_FILE) ? CONFIG_FILE : "(belum ada)"}`);
-        console.log(`  Auto-start   : ${loadConfig().autostart ? "AKTIF" : "nonaktif"}\n`);
+        const runNow = await prompt("  Jalankan agent sekarang? (Y/n): ");
+        if (runNow?.toLowerCase() !== "n") return "run";
         continue;
       }
-      case "g":
-        console.log("  RESET: menghapus config.json + auto-start...");
-        try { unlinkSync(CONFIG_FILE); } catch {}
-        try { if (IS_WIN) unlinkSync(join(EXE_DIR, "rentalrdp-agent-watchdog.bat")); } catch {}
-        await autoUninstall();
-        console.log("  Reset selesai. Lakukan setup ulang lewat D.\n");
-        continue;
-      case "h":
-        await autoUninstall();
+      case "2": {
+        if (await checkAndUpdate(loadConfig(), true)) return "exit";
         console.log("");
         continue;
-      case "x":
+      }
+      case "3":
       case "q":
+      case "x":
       case "0":
         return "exit";
       default:
@@ -922,10 +874,9 @@ if (args.includes("--install") || args.includes("-i")) {
   process.exit(0);
 }
 
-if (args.includes("--uninstall") || args.includes("-u")) {
-  await autoUninstall();
-  process.exit(0);
-}
+// Catatan keamanan: tanpa --uninstall. Agent hanya berhenti saat update
+// (applyUpdate men-taskkill & restart). Supaya agent tak bisa dimatikan
+// penyewa/hacker demi RDP gratis.
 
 if (args.includes("--update")) {
   await checkAndUpdate(loadConfig(), true);
@@ -942,7 +893,7 @@ if (SILENT) {
 }
 
 if (!cfg.api || !cfg.token) {
-  console.log("\n  Config belum diisi. Jalankan exe → menu → D (setup token) → A.\n");
+  console.log("\n  Config belum diisi. Jalankan exe → menu → 1 (Install / Ganti Token).\n");
   process.exit(1);
 }
 

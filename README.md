@@ -83,15 +83,16 @@ File rilis mengikuti pola penamaan `<os>-rentalrdp-agent-v<versi>.exe`, misalnya
 
 1. Dari **Dashboard Admin → Kelola PC**, buat PC baru (kode & token dibuat otomatis; token hanya tampil sekali).
 2. Unduh `windows-rentalrdp-agent-v1.exe` (tombol unduh berpindah sendiri ke versi terbaru) dan salin ke PC fisik.
-3. **Klik dua kali** file tersebut, lalu ikuti menu:
-   - **D** — isi Server URL (alamat situs) dan Agent Token;
-   - **A** — jalankan agent (konsol menampilkan seluruh aktivitas);
-   - **E** — aktifkan auto-start agar agent berjalan otomatis saat PC boot.
+3. **Klik dua kali** file tersebut, lalu pilih **1 — Install / Ganti Token** (isi Server URL & Agent Token; auto-start langsung diaktifkan) → jalankan agent.
 4. Dalam beberapa detik, PC muncul di katalog publik lengkap dengan spesifikasi aslinya.
 
-Menu lengkap: `A` jalankan · `B` hentikan · `C` perbarui dari GitHub · `D` atur token · `E` auto-start · `F` status · `G` reset · `H` hapus (uninstall) · `X` keluar.
+Menu: `1` install/ganti token · `2` update dari GitHub (agent berhenti & restart otomatis) · `3` keluar.
 
-Opsi baris perintah: `--install` / `-i` (auto-start) · `--uninstall` / `-u` (hapus) · `--update` (periksa pembaruan) · `--silent` (jalankan di latar belakang) · `--version`.
+Opsi baris perintah: `--install` / `-i` (auto-start) · `--update` (periksa pembaruan, agent berhenti & restart otomatis) · `--silent` (jalankan di latar belakang) · `--version`.
+
+> **Auto-update**: agent memeriksa versi yang tertanam di dalam file terhadap versi terkini di GitHub Releases, lalu mengganti dirinya sendiri secara otomatis. Naikkan `agent/AGENT_VERSION` untuk melepas versi baru.
+>
+> **Keamanan**: tidak ada opsi untuk menghentikan/uninstall/reset agent — supaya penyewa/hacker tidak bisa mematikan agent dan memakai RDP tanpa terhitung waktu.
 
 > **Auto-update**: agent memeriksa versi yang tertanam di dalam file terhadap versi terkini di GitHub Releases, lalu mengganti dirinya sendiri secara otomatis. Naikkan `agent/AGENT_VERSION` untuk melepas versi baru.
 
