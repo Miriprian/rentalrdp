@@ -644,6 +644,14 @@ async function ensureInstalled(): Promise<boolean> {
   if (process.argv.slice(2).includes("--uninstall") || process.argv.slice(2).includes("-u")) return false;
   try {
     mkdirSync(INSTALL_DIR, { recursive: true });
+    const LOG = join(INSTALL_DIR, ".relocate.log");
+    try {
+      writeFileSync(
+        LOG,
+        `[${new Date().toISOString()}] ==== EXE run ==== PID=${process.pid}\nSRC=${process.execPath}\nDST=${INSTALL_PATH}\n`,
+        "utf8"
+      );
+    } catch {}
     // Hentikan agent LAIN dulu (exclude PID diri sendiri). Bat tidak boleh taskkill,
     // supaya bat tidak pernah membunuh proses induknya sendiri (pohon prosesnya).
     log("Menghentikan agent lain (jika ada)...");
@@ -651,7 +659,6 @@ async function ensureInstalled(): Promise<boolean> {
     const ps = `Get-Process -Name '${name}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`;
     await runExe(["powershell", "-NoProfile", "-Command", ps]);
     const argLine = process.argv.slice(2).map((a) => " '" + a.replace(/'/g, "''") + "'").join(" ");
-    const LOG = join(INSTALL_DIR, ".relocate.log");
     const cfgLine =
       existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
         ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >> "%LOG%" 2>&1\r\n`
@@ -684,12 +691,16 @@ async function ensureInstalled(): Promise<boolean> {
       `\r\n:done` +
       `\r\ndel /q "%~f0" >nul 2>&1`;
     writeFileSync(bat, batScript, "utf8");
-    log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
-    log(`Detail gagal/sukses akan ditulis ke ${LOG}`);
+log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
+    log(`Detail bisa dilihat di ${LOG}`);
     Bun.spawn(["cmd", "/c", `"${bat}"`], { windowsHide: true });
     return true;
   } catch (e) {
-    log("Gagal pasang otomatis ke ProgramData: " + String(e).slice(0, 150));
+    const msg = "Gagal pasang otomatis ke ProgramData: " + String(e).slice(0, 300);
+    log(msg);
+    try {
+      writeFileSync(join(INSTALL_DIR, ".relocate.log"), `[${new Date().toISOString()}] EXE ERROR: ${msg}\n`, "utf8");
+    } catch {}
     log("Jalankan exe ini sebagai ADMINISTRATOR (klik kanan -> Run as administrator).");
     return false;
   }
