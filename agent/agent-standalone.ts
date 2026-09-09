@@ -419,8 +419,11 @@ async function createUser(username: string, password: string) {
       r = { ok: true, out: "password reset" };
     }
     if (r.ok) {
-      await sh(`net localgroup "Remote Desktop Users" ${username} /add`);
       await sh(`net user ${username} /active:yes`);
+      // Wajib: izinkan remote login → tambah ke grup "Remote Desktop Users"
+      // via SID (S-1-5-32-555) supaya tetap jalan di Windows berbahasa non-English
+      // (di mana "net localgroup \"Remote Desktop Users\"" gagal karena nama terlokalisasi).
+      await allowRdp(username);
     }
     return r;
   } else {
@@ -431,6 +434,15 @@ async function createUser(username: string, password: string) {
     }
     return r;
   }
+}
+
+async function allowRdp(username: string) {
+  const ps =
+    `try { Add-LocalGroupMember -Group (Get-LocalGroup -SID S-1-5-32-555) -Member '${username}'; Write-Output 'rdp-ok' } catch { Write-Output 'rdp-fail' }`;
+  const out = await runPowerShell(ps);
+  if (out.includes("rdp-ok")) return;
+  // Fallback: nama grup bahasa Inggris (Windows en-US atau grup sudah dibuat manual).
+  await sh(`net localgroup "Remote Desktop Users" ${username} /add`);
 }
 
 async function deleteUser(username: string) {
