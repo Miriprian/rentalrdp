@@ -226,7 +226,7 @@ async function adminRentAccHtml() {
       </div>
       <div class="mono mt-1 text-slate-200">${t("pass")}: ${esc(a.password)}</div>
       <div class="text-xs mt-1">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
-      ${a.task_status === "failed" ? `<div class="text-xs text-red-300 mt-1">${t("task_fail_hint")}</div>` : ""}
+      ${a.task_status === "failed" ? `<div class="text-xs text-red-300 mt-1">${String(a.task_result || "").includes("14 characters") ? t("task_fail_shortpass") : t("task_fail_hint")}</div>` : ""}
       <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")})' class="mt-2 px-3 py-1 rounded bg-slate-700 text-xs">📋 ${t("copy")}</button>
     </div>`).join("") : `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("rent_acc_empty")}</div>`) + `</div>`;
 }

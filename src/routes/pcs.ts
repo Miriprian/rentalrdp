@@ -184,7 +184,8 @@ export const pcRoutes = new Elysia()
     }
     const digits = (n: number) => Array.from({ length: n }, () => randomInt(0, 10)).join("");
     const username = "rent_" + digits(8);
-    const password = "pass_" + digits(12);
+    // Windows net user menolak password >14 karakter — pass_ + 9 digit = 14 (aman).
+    const password = "pass_" + digits(9);
     const taskId = crypto.randomUUID();
     await q(
       `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','create_user',$3,'pending')`,
