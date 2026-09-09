@@ -12,7 +12,7 @@
  *   - Jalankan dengan --install untuk auto-start, --uninstall untuk hapus
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { hostname } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
@@ -22,7 +22,7 @@ const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
 const CONFIG_FILE = existsSync(join(EXE_DIR, "config.json"))
   ? join(EXE_DIR, "config.json")
   : join(process.cwd(), "config.json");
-type Config = { api: string; token: string; interval: number; autostart?: boolean };
+type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string };
 const DEFAULT: Config = { api: "", token: "", interval: 15 };
 
 function loadConfig(): Config {
@@ -104,6 +104,96 @@ function prompt(q: string): Promise<string | null> {
     };
     process.stdin.on("data", onData);
   });
+}
+
+// ─── SELF-UPDATE (unduh agent terbaru dari GitHub Releases) ────
+const REPO = "Miriprian/rentalrdp";
+const ASSET_NAME = "rentalrdp-agent.exe";
+const API_LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+async function httpText(url: string, timeoutMs = 20000): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    const r = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "rentalrdp-agent" } });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    return await r.text();
+  } catch {
+    return null;
+  }
+}
+
+function tagNumber(tag: string): number {
+  const m = String(tag || "").match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+async function latestRelease(): Promise<{ tag: string; num: number; url: string } | null> {
+  try {
+    const txt = await httpText(API_LATEST_URL);
+    if (!txt) return null;
+    const j = JSON.parse(txt);
+    const tag = String(j.tag_name || "");
+    const asset = (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME);
+    if (!tag || !asset) return null;
+    return { tag, num: tagNumber(tag), url: asset.browser_download_url };
+  } catch {
+    return null;
+  }
+}
+
+async function applyUpdate(cfg: Config, rel: { tag: string; url: string }): Promise<boolean> {
+  const exePath = process.execPath;
+  const tmpDir = join(EXE_DIR, ".update");
+  const tmpNew = join(tmpDir, ASSET_NAME);
+  const updater = join(tmpDir, "apply-update.bat");
+  try {
+    mkdirSync(tmpDir, { recursive: true });
+    log(`Mengunduh ${rel.tag} dari GitHub...`);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 120000);
+    const r = await fetch(rel.url, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error("unduh gagal (HTTP " + r.status + ")");
+    const buf = await r.arrayBuffer();
+    writeFileSync(tmpNew, Buffer.from(buf));
+    log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti exe & restart otomatis...`);
+    const bat =
+      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${ASSET_NAME} >nul 2>&1\r\n` +
+      `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
+      `copy /y "${tmpNew}" "${exePath}" >nul\r\n` +
+      `del /q "${tmpNew}" >nul 2>&1\r\n` +
+      `start "" "${exePath}" --silent\r\n` +
+      `del /q "%~f0" >nul 2>&1\r\n`;
+    writeFileSync(updater, bat, "utf8");
+    try { saveConfig({ ...cfg, version: rel.tag }); } catch {}
+    Bun.spawn(["cmd", "/c", `"${updater}"`], { windowsHide: true });
+    return true;
+  } catch (e) {
+    log("Update gagal: " + String(e).slice(0, 200));
+    log("Coba lagi, atau unduh manual dari halaman Releases GitHub.");
+    return false;
+  }
+}
+
+async function checkAndUpdate(cfg: Config, force = false): Promise<boolean> {
+  log("Cek update dari GitHub Releases...");
+  const rel = await latestRelease();
+  if (!rel) {
+    log("Cek update gagal. Pastikan repo GitHub & Releases-nya PUBLIC (tanpa login).");
+    return false;
+  }
+  const local = cfg.version || "0";
+  if (!force && local === rel.tag) {
+    log(`Agent sudah versi terbaru: ${rel.tag}.`);
+    return false;
+  }
+  log(`Versi saat ini : ${local === "0" ? "(belum tercatat)" : local}`);
+  log(`Versi terbaru  : ${rel.tag}`);
+  const ans = await prompt("  Update sekarang? (Y/n): ");
+  if (ans?.toLowerCase() === "n") return false;
+  return applyUpdate(cfg, rel);
 }
 
 // ─── DETEKSI SPEK REAL (dikirim ke server) ──────────────────
@@ -534,6 +624,11 @@ if (args.includes("--uninstall") || args.includes("-u")) {
   process.exit(0);
 }
 
+if (args.includes("--update")) {
+  await checkAndUpdate(loadConfig(), true);
+  process.exit(0);
+}
+
 const SILENT = args.includes("--silent") || args.includes("-s");
 if (SILENT) hideConsole();
 
@@ -541,6 +636,14 @@ if (SILENT) hideConsole();
 if (IS_WIN && (await anotherInstanceRunning())) {
   console.log("Agent sudah berjalan. Instance baru ditutup (dua instance tidak diizinkan).");
   process.exit(0);
+}
+
+// Interaktif & config sudah ada → tawarkan update dari GitHub sebelum jalan normal.
+if (!SILENT) {
+  const pre = loadConfig();
+  if (pre.api && pre.token) {
+    if (await checkAndUpdate(pre)) process.exit(0);
+  }
 }
 
 const cfg = SILENT ? loadConfig() : await wizard();
