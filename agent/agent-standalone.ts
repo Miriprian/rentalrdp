@@ -475,18 +475,18 @@ async function createUser(username: string, password: string) {
       // Akun sewa = FULL ADMINISTRATOR (kebijakan pemilik: penyewa dapat kendali penuh PC).
       // Ditambah via SID (S-1-5-32-544) supaya tahan bahasa Windows (seperti SID RDP).
       await makeAdmin(username);
+      const adminOk = await isMemberAdmin(username);
       // Wajib: izinkan remote login → tambah ke grup "Remote Desktop Users"
       // via SID (S-1-5-32-555) supaya tetap jalan di Windows berbahasa non-English
       // (di mana "net localgroup \"Remote Desktop Users\"" gagal karena nama terlokalisasi).
       await allowRdp(username);
       // Jaminan "hanya 1 akun": buang SEMUA user lain (termasuk akun setup Windows
-      // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in
-      // (Administrator, Guest, DefaultAccount, WDAGUtilityAccount) yang wajib ada di Windows.
+      // / account pengguna lama) kecuali akun rent_ baru ini + akun sistem built-in.
       const purged = await purgeExtraAccounts(username);
       return {
         ok: true,
         out:
-          "akun terbuat (administrator)" +
+          `akun terbuat (administrator ${adminOk ? "✓" : "✗"})` +
           (purged.length ? ` | hapus akun lama: ${purged.join("; ")}` : " | tidak ada akun lama"),
       };
     }
@@ -507,12 +507,17 @@ function notFoundMsg(out: string) {
 
 // Akhiri session user (mis. masih login RDP/console) supaya akunnya bisa dihapus.
 async function endUserSessions(name: string) {
+  try {
+    const meOut = (await sh("whoami")).out.trim().toLowerCase().split("\\").pop();
+    if (meOut && meOut === name.toLowerCase()) return; // jangan logoff session kita sendiri
+  } catch {}
   for (const tool of ["query user", "quser"]) {
     const out = (await sh(`${tool} "${name}" 2>nul`)).out;
     const rows = out.split(/\r?\n/).filter((l) => l.trim() && !/USERNAME\s+SESSIONNAME/i.test(l));
     for (const row of rows) {
-      const toks = row.trim().split(/\s+/);
-      const id = toks[toks.length - 2];
+      const toks = row.trim().replace(/^>/, "").trim().split(/\s+/);
+      const stateIdx = toks.findIndex((x) => /^(Active|Disc|Conn|Other|Connect)$/i.test(x));
+      const id = stateIdx > 0 ? toks[stateIdx - 1] : toks[toks.length - 2];
       if (/^\d+$/.test(id || "")) {
         await sh(`logoff ${id} 2>nul`);
         await new Promise((res) => setTimeout(res, 1500));
@@ -573,6 +578,17 @@ async function purgeExtraAccounts(keep: string): Promise<string[]> {
       await sh(`net user administrator /active:no`);
       log("Administrator built-in dinonaktifkan kembali setelah purge selesai.");
     }
+    // Lapor sisa akun non-sistem setelah purge (transparan: kalau masih ada, ketahuan namanya).
+    try {
+      const left = (await runPowerShell(
+        `Get-LocalUser | Where-Object { $_.Name -notmatch '(?i)^(administrator|guest|defaultaccount|wdagutilityaccount)$' } | ForEach-Object { $_.Name }`
+      ))
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const leftover = left.filter((n) => n.toLowerCase() !== keep.toLowerCase());
+      if (leftover.length) results.push(`SISA: ${leftover.join(", ")}`);
+    } catch {}
   } catch (e) {
     results.push(String(e).slice(0, 140));
     log("purge akun lama gagal: " + String(e).slice(0, 120));
@@ -602,6 +618,18 @@ async function allowRdp(username: string) {
 
 async function makeAdmin(username: string) {
   await addToGroup(username, "S-1-5-32-544", "Administrators");
+}
+
+async function isMemberAdmin(name: string): Promise<boolean> {
+  try {
+    const out = await runPowerShell(
+      `try { (Get-LocalGroupMember -Group (Get-LocalGroup -SID S-1-5-32-544) | Where-Object { $_.Name -match '${name.replace(/'/g, "''")}' }).Count } catch { '0' }`
+    );
+    const n = parseInt((out.trim().split(/\r?\n/).pop() || "0"), 10);
+    return n > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function deleteUser(username: string) {
