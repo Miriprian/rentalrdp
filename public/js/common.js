@@ -48,21 +48,43 @@ function statusBadge(s) {
 }
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
-// Detail hardware agent (kolom hw_json): disk list + RAM modules + VRAM + core/thread
+// Semua spek yang didapat agent: tampil semua, setiap kolom di baris sendiri
+// (lokasi & OS tidak digabung). Virkam & core/thread ditampilkan inline di sini.
+function specHtml(p) {
+  let hw = {};
+  try { hw = JSON.parse(p.hw_json || "{}"); } catch {}
+  const l = [];
+  if (p.cpu) {
+    let s = esc(p.cpu);
+    if (hw.cpuCores) s += ` <span class="text-slate-500">(${hw.cpuCores}c/${hw.cpuThreads || hw.cpuCores}t${hw.cpuMaxGhz ? " @ " + hw.cpuMaxGhz + "GHz" : ""})</span>`;
+    l.push(`<div>🧠 <b>${t("spec_cpu")}:</b> ${s}</div>`);
+  }
+  if (p.gpu) {
+    let s = esc(p.gpu);
+    if (hw.gpuVramGb) s += ` <span class="text-slate-500">(${t("spec_vram", { vram: hw.gpuVramGb })})</span>`;
+    l.push(`<div>🎮 <b>${t("spec_gpu")}:</b> ${s}</div>`);
+  }
+  l.push(`<div>💾 <b>${t("spec_ram")}:</b> ${p.ram_gb || 0}GB${hw.ramType ? " " + esc(hw.ramType) : ""}</div>`);
+  l.push(`<div>🗄️ <b>${t("spec_storage")}:</b> ${p.storage_gb || 0}GB${p.storage_type ? " " + esc(p.storage_type) : ""}</div>`);
+  if (p.os) l.push(`<div>💿 <b>${t("spec_os")}:</b> ${esc(p.os)}</div>`);
+  if (p.motherboard) l.push(`<div>🖥️ <b>${t("spec_mb")}:</b> ${esc(p.motherboard)}</div>`);
+  if (p.location) l.push(`<div>📍 <b>${t("spec_loc")}:</b> ${esc(p.location)}</div>`);
+  return l.join("");
+}
+
+// Detail hardware agent (kolom hw_json): daftar fisik RAM modules + disk.
 function hwDetailHtml(p) {
   let hw = {};
   try { hw = JSON.parse(p.hw_json || "{}"); } catch {}
   const lines = [];
   if (hw.ramModules && hw.ramModules.length) {
     const mods = hw.ramModules.map((m) => `${m.capacityGb}GB ${hw.ramType || m.type || ""} ${m.speed || "?"}MHz ${esc(m.partNumber || m.manufacturer || "")}`.trim()).join(" + ");
-    lines.push(`💾 Detail RAM: ${mods}`);
+    lines.push(`💾 ${t("hw_ram")}: ${mods}`);
   }
   if (hw.disks && hw.disks.length) {
     const ds = hw.disks.map((d) => `${d.capacityGb}GB ${esc(d.model || "")}${d.busType ? ` (${esc(d.busType)})` : ""}`.trim()).join(" + ");
-    lines.push(`🗄️ Storage: ${ds}`);
+    lines.push(`🗄️ ${t("hw_disk")}: ${ds}`);
   }
-  if (hw.gpuVramGb) lines.push(`🎮 VRAM: ${hw.gpuVramGb}GB`);
-  if (hw.cpuCores) lines.push(`🧠 ${hw.cpuCores} core / ${hw.cpuThreads || hw.cpuCores} thread${hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : ""}`);
   if (!lines.length) return "";
   return `<details class="mt-2 text-[11px] text-slate-400"><summary class="cursor-pointer text-slate-300 hover:text-emerald-300">${t("hw_detail")}</summary><div class="mt-1 space-y-0.5">${lines.map((l) => `<div>${l}</div>`).join("")}</div></details>`;
 }

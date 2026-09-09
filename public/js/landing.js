@@ -25,13 +25,9 @@ function renderPcs() {
         <span class="ml-auto">${statusBadge(p.status)}</span>
       </div>
       <div class="font-extrabold">${esc(p.name)}</div>
-      <div class="text-[11px] text-slate-400">📍 ${esc(p.location)} • ${esc(p.os)} • <span class="text-emerald-300 font-bold">BARE METAL</span></div>
-      ${p.motherboard ? `<div class="text-[11px] text-slate-400 mt-1">🖥️ ${esc(p.motherboard)}</div>` : ""}
+      <div class="text-[11px] mt-0.5 text-emerald-300 font-bold">⭐ BARE METAL</div>
+      <div class="mt-1 space-y-0.5 text-xs text-slate-300">${specHtml(p)}</div>
       ${netSpeedHtml(p)}
-      <div class="grid grid-cols-2 gap-1 mt-3 text-xs text-slate-300">
-        <div>🧠 ${esc(p.cpu)}</div><div>🎮 ${esc(p.gpu)}</div>
-        <div>💾 ${p.ram_gb}GB RAM</div><div>🗄️ ${p.storage_gb}GB ${esc(p.storage_type)}</div>
-      </div>
       ${hwDetailHtml(p)}
       <p class="text-xs text-slate-400 mt-2">${esc(p.description || "")}</p>
       <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
