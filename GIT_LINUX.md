@@ -1,4 +1,4 @@
-# 🔀 GIT_LINUX — Pakai Git + GitHub (Mulai dari Nol, Pemula)
+# 🔀 GIT_LINUX — Panduan Git + GitHub
 
 > Tujuan: **bikin di Windows / Linux, update di server Linux, tanpa copy file manual.**
 > Prinsipnya: **GitHub jadi "tempat simpan"**, server tinggal tarik versi terbaru.

@@ -1,9 +1,9 @@
-# 🐧 TUTORIAL_LINUX — Install Production (Pemula)
+# 🐧 TUTORIAL_LINUX — Setup Produksi di VPS Linux
 
-> **Cara paling gampang & paling enak untuk pemula = DOCKER.**
+> **Cara paling mudah & direkomendasikan = DOCKER.**
 > Sekali perintah, semua (server + database) jalan sendiri, restart otomatis kalau mati, dan bisa dipindah ke server lain tanpa ribet.
 >
-> Ini tutorial untuk **VPS Ubuntu** (DigitalOcean / Vultr / Hostinger / dll). Tanpa coding.
+> Panduan ini untuk **VPS Ubuntu** (DigitalOcean / Vultr / Hostinger / dll), tanpa perlu pengetahuan pemrograman.
 
 ---
 
@@ -170,7 +170,7 @@ Simpan file `.sql` + file `.env` di tempat aman (flashdisk/Google Drive).
 
 ## Bagian 7 — (Opsional) Pakai Nama Domain + HTTPS
 
-Penting untuk produksi sungguhan biar ada gembok 🔒. Pakai **Caddy** (paling gampang, auto HTTPS):
+Penting untuk produksi agar koneksi terenkripsi (HTTPS). Pakai **Caddy** (mudah, auto-HTTPS):
 
 1. Di VPS: install Caddy.
    ```bash
@@ -220,7 +220,7 @@ Katalog kamu sudah kosong (belum ada PC), jadi mungkin belum perlu. Tapi kalau s
 
 ---
 
-## Kenapa Docker (alasan minat pemula)
+## Mengapa Docker
 
 - **1 perintah** install, tidak perlu paham Node/Bun/Postgres.
 - **Auto-restart** saat mati/reboot VPS.

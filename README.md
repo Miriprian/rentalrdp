@@ -55,7 +55,7 @@ Operasional harian: `sudo ./manage.sh` (menu status/log/restart/backup), `docker
 
 ### Menjaga Kode Tetap Terbaru
 
-- Manual: push dari komputer Anda, lalu di VPS jalankan `sudo ./update.sh`. Panduan Git untuk pemula: **`GIT_LINUX.md`**.
+- Manual: push dari komputer Anda, lalu di VPS jalankan `sudo ./update.sh`. Panduan Git: **`GIT_LINUX.md`**.
 - Otomatis penuh (build `.exe` agent + deploy VPS via GitHub Actions): **`LEVEL2_GITHUB_ACTIONS.md`**.
 
 ---
