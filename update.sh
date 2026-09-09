@@ -14,7 +14,7 @@ cd "$(dirname "$0")"
 
 echo ""
 echo "======================================"
-echo "  rentalrdp.com — UPDATE dari GitHub"
+echo "  Rental PC by Miriprian — UPDATE dari GitHub"
 echo "======================================"
 
 # ─── DETEKSI MODE INSTALL ──────────────────────────
@@ -35,7 +35,10 @@ fi
 # ─── 2. PULL PERUBAHAN dari GitHub ─────────────────
 if [ -d .git ]; then
   info "Menarik perubahan terbaru..."
-  git pull --ff-only
+  # Server deploy wajib mencerminkan main persis (perubahan lokal dibuang,
+  # .env & data/ tidak tersentuh karena untracked & ter-ignore).
+  git fetch origin
+  git reset --hard origin/main
 else
   warn "Belum ada .git di folder ini. Clone dulu dari GitHub:"
   echo "    gh repo clone Miriprian/rentalrdp /opt/rentalrdp"
