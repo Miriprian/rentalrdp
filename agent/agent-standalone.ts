@@ -28,9 +28,9 @@ const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
 const CONFIG_FILE = existsSync(join(EXE_DIR, "config.json"))
   ? join(EXE_DIR, "config.json")
   : join(process.cwd(), "config.json");
-// Lokasi instal resmi — exe yang di-download otomatis dipindah ke sini saat di-run.
-const INSTALL_DIR = "C:\\ProgramData\\agent";
-const INSTALL_PATH = join(INSTALL_DIR, "rentalrdp-agent.exe");
+// Nama file & "process image name" mengikuti nama exe (mis. rentalrdp-agent-v1.exe).
+const AGENT_EXE_NAME = (process.execPath || "rentalrdp-agent").split(/[\\/]/).pop()!;
+const PROC_BASE = AGENT_EXE_NAME.replace(/\.exe$/i, "");
 type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string };
 const DEFAULT: Config = { api: "", token: "", interval: 15 };
 
@@ -139,7 +139,9 @@ async function latestRelease(): Promise<{ tag: string; url: string } | null> {
     if (!txt) return null;
     const j = JSON.parse(txt);
     const tag = String(j.tag_name || "");
-    const asset = (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME);
+    const asset =
+      (j.assets || []).find((a: { name: string; browser_download_url: string }) => /^rentalrdp-agent-v.*\.exe$/i.test(a.name)) ||
+      (j.assets || []).find((a: { name: string; browser_download_url: string }) => a.name === ASSET_NAME);
     if (!tag || !asset) return null;
     return { tag, url: asset.browser_download_url };
   } catch {
@@ -161,7 +163,7 @@ function cmpVersion(a: string, b: string): number {
 async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> {
   const exePath = process.execPath;
   const tmpDir = join(EXE_DIR, ".update");
-  const tmpNew = join(tmpDir, ASSET_NAME);
+  const tmpNew = join(tmpDir, decodeURIComponent(rel.url.split("/").pop() || ASSET_NAME));
   const updater = join(tmpDir, "apply-update.bat");
   try {
     mkdirSync(tmpDir, { recursive: true });
@@ -175,7 +177,7 @@ async function applyUpdate(cfg: Config, rel: { url: string }): Promise<boolean> 
     writeFileSync(tmpNew, Buffer.from(buf));
     log(`Terunduh ${(buf.byteLength / 1048576).toFixed(1)} MB — mengganti exe & restart otomatis...`);
     const bat =
-      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${ASSET_NAME} >nul 2>&1\r\n` +
+      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${AGENT_EXE_NAME} >nul 2>&1\r\n` +
       `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
       `copy /y "${tmpNew}" "${exePath}" >nul\r\n` +
       `del /q "${tmpNew}" >nul 2>&1\r\n` +
@@ -562,7 +564,7 @@ async function createWindowsAutoStart(): Promise<boolean> {
 
   // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
   try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name 'rentalrdp-agent' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0rentalrdp-agent.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
   } catch {}
 
   // 3) Task BOOT (SYSTEM) — jalan SEBELUM login, session 0 (tak terlihat), dan tidak bisa
@@ -647,155 +649,89 @@ async function autoUninstall() {
   }
 }
 
-// ─── AUTO-INSTALL KE C:\ProgramData\agent ────────────────────
-// Kalau exe dijalankan dari folder mana pun (mis. Downloads) dan belum ada di lokasi
-// resmi, copy diri ke INSTALL_PATH lalu jalankan versi terpasang itu (tanpa pindah manual).
-// Butuh admin (UAC) untuk menulis ProgramData.
-
-async function ensureInstalled(): Promise<boolean> {
-  const silentNow = process.argv.includes("--silent") || process.argv.includes("-s");
-  if (!IS_WIN || silentNow) return false;
-  if (process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase()) return false; // sudah terpasang
-  if (process.argv.slice(2).includes("--uninstall") || process.argv.slice(2).includes("-u")) return false;
-  try {
-    mkdirSync(INSTALL_DIR, { recursive: true });
-    const LOG = join(INSTALL_DIR, ".relocate.log");
-    try {
-      writeFileSync(
-        LOG,
-        `[${new Date().toISOString()}] ==== EXE run ==== PID=${process.pid}\nSRC=${process.execPath}\nDST=${INSTALL_PATH}\n`,
-        "utf8"
-      );
-    } catch {}
-    // Hentikan agent LAIN dulu (exclude PID diri sendiri). Bat tidak boleh taskkill,
-    // supaya bat tidak pernah membunuh proses induknya sendiri (pohon prosesnya).
-    log("Menghentikan agent lain (jika ada)...");
-    const name = ASSET_NAME.replace(/\.exe$/i, "");
-    const ps = `Get-Process -Name '${name}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`;
-    await runExe(["powershell", "-NoProfile", "-Command", ps]);
-    const argLine = process.argv.slice(2).map((a) => " '" + a.replace(/'/g, "''") + "'").join(" ");
-    const cfgLine =
-      existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
-        ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >> "%LOG%" 2>&1\r\n`
-        : "";
-    const bat = join(INSTALL_DIR, ".relocate.bat");
-    const batScript =
-      `@echo off` +
-      `\r\nsetlocal` +
-      `\r\nset "LOG=${LOG}"` +
-      `\r\necho [%date% %time%] ==== bat started ==== >> "%LOG%"` +
-      `\r\necho SRC=${process.execPath} >> "%LOG%"` +
-      `\r\necho DST=${INSTALL_PATH} >> "%LOG%"` +
-      `\r\nset /a attempt=0` +
-      `\r\n:again` +
-      `\r\nset /a attempt+=1` +
-      `\r\nping -n 4 127.0.0.1 >nul 2>&1` +
-      `\r\ncopy /y "${process.execPath}" "${INSTALL_PATH}" >> "%LOG%" 2>&1` +
-      cfgLine +
-      `\r\nif exist "${INSTALL_PATH}" for %%F in ("${INSTALL_PATH}") do if %%~zF GEQ 100000 goto copied` +
-      `\r\nif %attempt% GEQ 6 goto fail` +
-      `\r\necho [%time%] retry copy (percobaan %attempt%) >> "%LOG%"` +
-      `\r\nping -n 3 127.0.0.1 >nul 2>&1` +
-      `\r\ngoto again` +
-      `\r\n:copied` +
-      `\r\nfor %%F in ("${INSTALL_PATH}") do echo [%time%] COPY OK size=%%~zF >> "%LOG%"` +
-      `\r\npowershell -NoProfile -WindowStyle Normal -Command "& '${INSTALL_PATH}' ${argLine}"` +
-      `\r\ngoto done` +
-      `\r\n:fail` +
-      `\r\necho [%time%] COPY FAILED (file tidak terisi penuh) >> "%LOG%"` +
-      `\r\n:done` +
-      `\r\ndel /q "%~f0" >nul 2>&1`;
-    writeFileSync(bat, batScript, "utf8");
-log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
-    log(`Detail bisa dilihat di ${LOG}`);
-    Bun.spawn(["cmd", "/c", `"${bat}"`], { windowsHide: true });
-    return true;
-  } catch (e) {
-    const msg = "Gagal pasang otomatis ke ProgramData: " + String(e).slice(0, 300);
-    log(msg);
-    try {
-      writeFileSync(join(INSTALL_DIR, ".relocate.log"), `[${new Date().toISOString()}] EXE ERROR: ${msg}\n`, "utf8");
-    } catch {}
-    log("Jalankan exe ini sebagai ADMINISTRATOR (klik kanan -> Run as administrator).");
-    return false;
-  }
-}
-
 // ─── MENU INSTALLER INTERAKTIF ───────────────────────────────
-// Keluar dari folder mana pun (Downloads dll) → tampilkan menu "seperti installer software".
-async function interactiveMenu(): Promise<void> {
-  const cfg = loadConfig();
-  const configured = !!(cfg.api && cfg.token);
-  const atInstall = process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase();
+// Menu interaktif; console TETAP TERBUKA setelah aksi sampai user memilih Keluar.
+async function interactiveMenu(): Promise<"run" | "exit"> {
+  const cfgNow = loadConfig();
+  const configured = !!(cfgNow.api && cfgNow.token);
   console.log(`
 ┌──────────────────────────────────────────────────────────┐
-│            RentalRDP Agent — INSTALLER                   │
+│              RentalRDP Agent — MENU                      │
 ├──────────────────────────────────────────────────────────┤
-│  Versi         : v${VERSION}
-│  Berjalan dari : ${process.execPath}
-│  Lokasi resmi  : ${INSTALL_PATH}
-│  Status        : ${atInstall ? "terpasang di lokasi resmi" : "BELUM terpasang"}`
-    + ` | ${configured ? "sudah setup" : "belum setup"}`
+│  File         : ${AGENT_EXE_NAME}
+│  Versi        : v${VERSION}
+│  Config       : ${CONFIG_FILE}
+│  Status       : ${configured ? "sudah setup" : "BELUM setup"}`
+    + ` | auto-start ${cfgNow.autostart ? "AKTIF" : "nonaktif"}`
     + `\n└──────────────────────────────────────────────────────────┘\n`
   );
   while (true) {
     console.log(`
-  1)  PASANG / PERBAIKI   (copy ke ProgramData + auto-start + jalankan)
-  2)  HENTIKAN agent yang sedang berjalan
-  3)  CEK & UPDATE agent dari GitHub
-  4)  SETUP / GANTI token (server URL + token)
-  5)  UNINSTALL           (hapus auto-start & file)
-  6)  Keluar
+  A)  JALANKAN agent (foreground)
+  B)  HENTIKAN agent yang sedang berjalan
+  C)  UPDATE agent dari GitHub (cek versi terbaru)
+  D)  SETUP / GANTI TOKEN (server URL + token)
+  E)  AUTO-START AKTIF (BOOT + watchdog)
+  F)  STATUS / CEK proses & config
+  G)  RESET (hapus config + auto-start, mulai dari awal)
+  H)  UNINSTALL (hapus auto-start saja)
+  X)  KELUAR
 `);
-    const ans = (await prompt("  Pilih [1-6], Enter = 1 : ")) || "1";
-    switch (ans.trim().toLowerCase()) {
-      case "1":
-        if (await ensureInstalled()) return; // exe keluar, bat lanjut copy+start (wizard akan terbuka)
-        console.log("  Pasang gagal. Jalankan sebagai ADMINISTRATOR lalu coba lagi.\n");
-        continue;
-      case "2": {
-        console.log("  Menghentikan semua proses agent...");
-        const name = ASSET_NAME.replace(/\.exe$/i, "");
-        await runExe([
-          "powershell",
-          "-NoProfile",
-          "-Command",
-          `Get-Process -Name '${name}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`,
-        ]);
-        console.log("  Selesai — agent dihentikan (jika ada).\n");
-        return;
-      }
-      case "3":
+    const ans = ((await prompt("  Pilih [A-H/X], Enter = A : ")) || "a").trim().toLowerCase();
+    switch (ans) {
+      case "a":
         if (!configured) {
-          console.log("  Belum setup. Pilih 4 untuk isi server+token, atau 1 untuk pasang dulu.\n");
-          continue;
+          const c2 = await wizard();
+          if (!c2.api || !c2.token) {
+            console.log("  Setup tidak lengkap → kembali ke menu.\n");
+            continue;
+          }
         }
-        if (!atInstall) {
-          console.log("  Update efektif setelah TERPASANG. Jalankan dari folder ini tidak meng-update file di ProgramData.\n");
-          continue;
-        }
-        if (await checkAndUpdate(cfg, true)) return;
+        return "run";
+      case "b": {
+        console.log("  Menghentikan semua proses agent...");
+        const ps = `Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force`;
+        await runExe(["powershell", "-NoProfile", "-Command", ps]);
+        console.log("  Selesai — agent dihentikan. Jendela tetap terbuka.\n");
+        continue;
+      }
+      case "c":
+        if (!configured) console.log("  Belum setup. Pilih D untuk isi server+token, lalu C lagi.\n");
+        else if (await checkAndUpdate(loadConfig(), true)) return "exit";
         console.log("");
         continue;
-      case "4": {
+      case "d": {
         const c2 = await wizard();
-        if (c2.api && c2.token) {
-          if (atInstall) await autoInstall();
-          console.log("  Setup selesai. Untuk memastikan terpasang & berjalan, pilih 1.\n");
-        }
-        return;
+        if (c2.api && c2.token) console.log("  Token tersimpan. Pilih A untuk menjalankan agent.\n");
+        continue;
       }
-      case "5":
+      case "e":
+        await autoInstall();
+        console.log("");
+        continue;
+      case "f": {
+        const ck = await runExe(["powershell", "-NoProfile", "-Command", `(Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue | Measure-Object).Count`]);
+        const n = parseInt((ck.out.match(/\d+/) || ["0"])[0], 10);
+        console.log(`  Proses "${PROC_BASE}" : ${n} instance berjalan`);
+        console.log(`  Config       : ${existsSync(CONFIG_FILE) ? CONFIG_FILE : "(belum ada)"}`);
+        console.log(`  Auto-start   : ${loadConfig().autostart ? "AKTIF" : "nonaktif"}\n`);
+        continue;
+      }
+      case "g":
+        console.log("  RESET: menghapus config.json + auto-start...");
+        try { unlinkSync(CONFIG_FILE); } catch {}
+        try { if (IS_WIN) unlinkSync(join(EXE_DIR, "rentalrdp-agent-watchdog.bat")); } catch {}
         await autoUninstall();
-        if (atInstall) {
-          console.log("  Menghapus file agent di lokasi resmi...");
-          await runExe(["cmd", "/c", `del /q "${process.execPath}"`]);
-        }
-        return;
-      case "6":
-      case "q":
+        console.log("  Reset selesai. Lakukan setup ulang lewat D.\n");
+        continue;
+      case "h":
+        await autoUninstall();
+        console.log("");
+        continue;
       case "x":
-        return;
+      case "q":
+      case "0":
+        return "exit";
       default:
         console.log("  Pilihan tidak dikenal.\n");
     }
@@ -807,29 +743,12 @@ const args = process.argv.slice(2);
 const SILENT = args.includes("--silent") || args.includes("-s");
 if (SILENT) hideConsole();
 
-const atInstall = process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase();
-
-// Instalasi interaktif: dari folder mana pun (mis. Downloads) tanpa config → MENU.
-// Atau paksa dengan --menu. Mode silent/--install/--uninstall TIDAK masuk ke menu.
 if (args.includes("--version") || args.includes("-v")) {
-  console.log(`rentalrdp-agent v${VERSION}`);
-  process.exit(0);
-}
-if (
-  !SILENT &&
-  !args.includes("--install") &&
-  !args.includes("-i") &&
-  !args.includes("--uninstall") &&
-  !args.includes("-u") &&
-  (args.includes("--menu") || !atInstall)
-) {
-  await interactiveMenu();
+  console.log(`${AGENT_EXE_NAME} v${VERSION}`);
   process.exit(0);
 }
 
 if (args.includes("--install") || args.includes("-i")) {
-  // Pasang dari folder mana pun: relokasi dulu ke ProgramData baru autoInstall di sana.
-  if (await ensureInstalled()) process.exit(0);
   await autoInstall();
   process.exit(0);
 }
@@ -844,49 +763,33 @@ if (args.includes("--update")) {
   process.exit(0);
 }
 
-// Interaktif & config sudah ada → tawarkan update dari GitHub sebelum jalan normal.
-// (Diizinkan WALAU agent lain masih berjalan — updater akan taskkill + replace + restart sendiri.)
-if (!SILENT) {
-  const pre = loadConfig();
-  if (pre.api && pre.token) {
-    if (await checkAndUpdate(pre)) process.exit(0);
-  }
+let cfg: Config;
+if (SILENT) {
+  cfg = loadConfig();
+} else {
+  const choice = await interactiveMenu();
+  if (choice !== "run") process.exit(0);
+  cfg = loadConfig();
 }
-
-// Anti ganda: kalau agent lain sudah berjalan, instance baru keluar.
-// (Update di atas didahulukan supaya self-update tidak terbentur guard ini.)
-if (IS_WIN && (await anotherInstanceRunning())) {
-  console.log(SILENT ? "Agent sudah berjalan (background). Instance ini ditutup." : "Agent lain masih berjalan; instance ini ditutup (tidak dibuat ganda).");
-  process.exit(0);
-}
-
-const cfg = SILENT ? loadConfig() : await wizard();
 
 if (!cfg.api || !cfg.token) {
-  console.log("\n  Config belum diisi! Jalankan tanpa --silent untuk setup wizard.");
-  console.log("  Atau buat config.json manual:\n");
-  console.log('  {"api":"http://SERVER:3000","token":"TOKEN","interval":15}');
+  console.log("\n  Config belum diisi. Jalankan exe → menu → D (setup token) → A.\n");
   process.exit(1);
 }
-
-// Sekali klik: setelah setup/config valid, daftarkan auto-start (hanya saat interaktif
-// — mode --silent dari scheduler TIDAK pernah install/elevate, supaya tidak ada UAC di boot).
-if (!SILENT) await autoInstall();
 
 console.log(`
 ╔══════════════════════════════════════════════════╗
 ║  rentalrdp.com — Bare Metal Agent               ║
-║  Versi : v${VERSION.padEnd(39).slice(0, 39)}║
-║  Host : ${HOSTNAME.padEnd(45).slice(0, 39)}║
-║  API  : ${cfg.api.slice(0, 39).padEnd(39)}║
-║  Mode : ${IS_WIN ? "Windows" : "Linux"} ${(IS_WIN ? "(RDP)" : "(SSH)").padEnd(32)}║
-║  Poll : setiap ${String(cfg.interval) + " detik".padEnd(30)}║
+║  File  : ${AGENT_EXE_NAME.padEnd(38).slice(0, 38)}║
+║  Versi : v${VERSION.padEnd(38).slice(0, 38)}║
+║  Host  : ${HOSTNAME.padEnd(38).slice(0, 38)}║
+║  API   : ${cfg.api.slice(0, 38).padEnd(38)}║
+║  Mode  : ${(IS_WIN ? "Windows (RDP)" : "Linux (SSH)").padEnd(38)}║
+║  Poll  : ${("setiap " + cfg.interval + " detik").padEnd(38)}║
 ╠══════════════════════════════════════════════════╣
-║  Auto-start: otomatis terpasang (jalan saat boot)║
 ║  Ctrl+C untuk berhenti.                          ║
-║  --uninstall = hapus auto-start                  ║
 ╚══════════════════════════════════════════════════╝
 `);
 
-await loop(cfg);
+loop(cfg);
 setInterval(() => loop(cfg), cfg.interval * 1000);
