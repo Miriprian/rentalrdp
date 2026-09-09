@@ -12,7 +12,7 @@
  *   - Jalankan dengan --install untuk auto-start, --uninstall untuk hapus
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { hostname } from "node:os";
 import { dlopen, FFIType } from "bun:ffi";
@@ -637,50 +637,33 @@ async function autoUninstall() {
 // resmi, copy diri ke INSTALL_PATH lalu jalankan versi terpasang itu (tanpa pindah manual).
 // Butuh admin (UAC) untuk menulis ProgramData.
 
-function quoteArg(a: string): string {
-  return ' "' + a.replace(/"/g, '""') + '"';
-}
-
-function installedArgString(): string {
-  const skip = new Set(["--install", "-i", "--uninstall", "-u"]);
-  return process.argv.slice(2).filter((a) => !skip.has(a)).map(quoteArg).join("");
-}
-
 async function ensureInstalled(): Promise<boolean> {
-  const silentNow = process.argv.slice(2).includes("--silent") || process.argv.slice(2).includes("-s");
+  const silentNow = process.argv.includes("--silent") || process.argv.includes("-s");
   if (!IS_WIN || silentNow) return false;
   if (process.execPath.toLowerCase() === INSTALL_PATH.toLowerCase()) return false; // sudah terpasang
   if (process.argv.slice(2).includes("--uninstall") || process.argv.slice(2).includes("-u")) return false;
   try {
     mkdirSync(INSTALL_DIR, { recursive: true });
-    const targetRunning = await anotherInstanceRunning();
-    if (!targetRunning) {
-      copyFileSync(process.execPath, INSTALL_PATH);
-      try {
-        if (existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))) {
-          copyFileSync(CONFIG_FILE, join(INSTALL_DIR, "config.json"));
-        }
-      } catch {}
-      log(`Terpasang: ${INSTALL_PATH}`);
-      Bun.spawn([INSTALL_PATH, ...process.argv.slice(2)], { windowsHide: true });
-      return true;
-    }
-    // Versi lama masih berjalan → ganti lewat bat (taskkill → copy → start).
+    // Selalu pakai bat (bukan spawn langsung): taskkill membereskan agent lama ATAU instance
+    // diri sendiri, lalu start dari ProgramData dengan window NORMAL (wizard terlihat), dan
+    // tidak ada race double-instance karena proses lama sudah mati duluan.
+    const argLine = process.argv.slice(2).map((a) => " '" + a.replace(/'/g, "''") + "'").join(" ");
+    const cfgLine =
+      existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
+        ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >nul\r\n`
+        : "";
     const bat = join(INSTALL_DIR, ".relocate.bat");
-    const args = installedArgString();
     writeFileSync(
       bat,
-      `@echo off\r\nsetlocal\r\ntaskkill /f /im rentalrdp-agent.exe >nul 2>&1\r\n` +
+      `@echo off\r\nsetlocal\r\ntaskkill /f /im ${ASSET_NAME} >nul 2>&1\r\n` +
         `ping -n 4 127.0.0.1 >nul 2>&1\r\n` +
         `copy /y "${process.execPath}" "${INSTALL_PATH}" >nul\r\n` +
-        (existsSync(CONFIG_FILE) && !existsSync(join(INSTALL_DIR, "config.json"))
-          ? `copy /y "${CONFIG_FILE}" "${join(INSTALL_DIR, "config.json")}" >nul\r\n`
-          : "") +
-        `start "" "${INSTALL_PATH}"${args}\r\n` +
+        cfgLine +
+        `powershell -NoProfile -WindowStyle Normal -Command "& '${INSTALL_PATH}' ${argLine}"\r\n` +
         `del /q "%~f0" >nul 2>&1\r\n`,
       "utf8"
     );
-    log(`Mengganti agent lama dengan versi baru di ${INSTALL_PATH}...`);
+    log(`Memasang & menjalankan agent dari ${INSTALL_PATH} ...`);
     Bun.spawn(["cmd", "/c", `"${bat}"`], { windowsHide: true });
     return true;
   } catch (e) {
