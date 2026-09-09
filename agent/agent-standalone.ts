@@ -436,7 +436,10 @@ let detectedSpecs: Record<string, unknown> | null = null;
 // ping (TCP RTT), download (file uji Ookla), upload (POST ke upload.php).
 type NetResult = { downloadMbps: number; uploadMbps: number; pingMs: number; testedAt: string };
 const NET_CACHE = existsSync(join(EXE_DIR, "speed.json")) ? join(EXE_DIR, "speed.json") : join(process.cwd(), "speed.json");
-const SPEED_INTERVAL_MS = 6 * 60 * 60 * 1000; // tes ulang otomatis tiap 6 jam
+// Tes ulang otomatis tiap 12 jam + jitter acak (±30 menit) per unit, supaya kalau
+// PC sudah banyak speedtest tidak jalan bareng-bareng (tidak membebani server/server Ookla).
+const SPEED_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const SPEED_JITTER_MS = Math.floor(Math.random() * 30 * 60 * 1000);
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0";
 let netState: NetResult | null = loadNetState();
 let netBusy = false;
@@ -589,7 +592,7 @@ async function runSpeedTest() {
 
 function maybeSpeedTest() {
   if (netBusy) return;
-  if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS) return;
+  if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS + SPEED_JITTER_MS) return;
   void runSpeedTest();
 }
 

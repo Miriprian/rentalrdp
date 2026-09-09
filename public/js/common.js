@@ -71,12 +71,10 @@ function specHtml(p) {
 
   const dl = Number(p.net_download_mbps || 0), ul = Number(p.net_upload_mbps || 0), ping = Number(p.net_ping_ms || 0);
   if (dl || ul) {
-    rows.push([t("spec_net"), t("net_speed", { down: dl || "-", up: ul || "-" })]);
-    if (ping) {
-      let pv = t("net_ping", { ping });
-      if (p.net_tested_at) pv += " · " + new Date(p.net_tested_at).toLocaleString(langState.lang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-      rows.push([t("spec_ping"), pv]);
-    }
+    let iv = t("net_speed", { down: Math.round(dl), up: Math.round(ul) });
+    if (p.net_tested_at) iv += " (" + new Date(p.net_tested_at).toLocaleString(langState.lang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) + ")";
+    rows.push([t("spec_net"), iv]);
+    if (ping) rows.push([t("spec_ping"), t("net_ping", { ping })]);
   }
 
   // Detail fisik RAM & disk — tetap tampil, di bawah urutan utama.

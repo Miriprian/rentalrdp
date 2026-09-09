@@ -165,7 +165,8 @@ async function detectSpecs() {
 // Murni JS (fetch + node:net), tanpa dependency native.
 type NetResult = { downloadMbps: number; uploadMbps: number; pingMs: number; testedAt: string };
 const NET_CACHE = join(process.cwd(), "speed.json");
-const SPEED_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const SPEED_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const SPEED_JITTER_MS = Math.floor(Math.random() * 30 * 60 * 1000);
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0";
 let netState: NetResult | null = (() => {
   try {
@@ -302,7 +303,7 @@ async function runSpeedTest() {
 
 function maybeSpeedTest() {
   if (netBusy) return;
-  if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS) return;
+  if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS + SPEED_JITTER_MS) return;
   void runSpeedTest();
 }
 
