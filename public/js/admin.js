@@ -91,6 +91,8 @@ async function adminPcsHtml() {
           ${p.last_seen_at && !p.is_active ? `<button onclick="publishPc('${p.id}')" class="px-4 py-2 rounded-lg bg-emerald-600 font-bold">${t("btn_publish")}</button>` : ""}
           ${p.is_active ? `<button onclick="unpublishPc('${p.id}')" class="px-4 py-2 rounded-lg bg-slate-700">${t("btn_unpublish")}</button>` : ""}
           <button onclick="regenToken('${p.id}')" class="px-4 py-2 rounded-lg bg-amber-700">${t("btn_token")}</button>
+          <button onclick="mkRentUser('${p.id}')" class="px-4 py-2 rounded-lg bg-emerald-800">${t("btn_mk_manual")}</button>
+          <button onclick="rmRentUser('${p.id}','${esc(p.code)}')" class="px-4 py-2 rounded-lg bg-red-800">${t("btn_rm_manual")}</button>
           <button onclick="delPc('${p.id}')" class="px-4 py-2 rounded-lg bg-red-800">${t("btn_delete")}</button>
         </div>
         <div class="text-xs text-slate-500 mt-1"><span class="md:inline-block pr-2">${t("price_day_1")}<b class="text-emerald-300">${rupiah(p.price_hourly)}${t("price_suffix")}</b></span><span class="md:inline-block">${rupiah(p.price_daily)}/hari • ${rupiah(p.price_weekly)}/minggu • ${rupiah(p.price_monthly)}/bulan</span></div>
@@ -179,6 +181,20 @@ window.showAgentSetup = async function (code, token) {
 window.delPc = async function (id) {
   if (!confirm(t("confirm_delete_pc"))) return;
   const r = await api(`/api/pcs/${id}`, { method: "DELETE" });
+  toast(r.message || "OK"); renderBody();
+};
+window.mkRentUser = async function (id) {
+  const r = await api(`/api/admin/pcs/${id}/rent-user`, { method: "POST" });
+  if (r.ok && r.username) {
+    alert(`${t("mk_ok")}\n\nUser : ${r.username}\nPass : ${r.password}\n\n${t("mk_note")}`);
+    toast(t("mk_sent"));
+  } else toast(r.message || "Gagal");
+  renderBody();
+};
+window.rmRentUser = async function (id, code) {
+  const u = prompt(`${t("rm_prompt")} (${code})`);
+  if (!u || !u.trim()) return;
+  const r = await api(`/api/admin/pcs/${id}/delete-user`, { method: "POST", body: JSON.stringify({ username: u.trim() }) });
   toast(r.message || "OK"); renderBody();
 };
 

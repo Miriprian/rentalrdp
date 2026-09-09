@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="id">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title data-i18n="doc_title">Rental PC by Miriprian — Sewa PC Bare Metal (Perangkat Fisik)</title>
+<title data-i18n="doc_title">Rental PC by Miriprian â€” Sewa PC Bare Metal (Perangkat Fisik)</title>
 <meta name="description" content="Sewa PC fisik bare metal secara online dari Rental PC by Miriprian. Bukan VPS atau virtualisasi Proxmox. Akses RDP penuh + IP publik."/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸ–¥ï¸</text></svg>"/>
 <style>
   body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
   .card{background:#0f172a;border:1px solid #1e293b}
@@ -22,10 +22,10 @@
 <!-- NAV -->
 <header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="text-2xl">🖥️</div>
+    <div class="text-2xl">ðŸ–¥ï¸</div>
     <div>
       <div class="font-extrabold text-lg leading-none">Rental PC<span class="text-emerald-400"> by Miriprian</span></div>
-      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare Metal • Perangkat Fisik • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
+      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare Metal â€¢ Perangkat Fisik â€¢ <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
       <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 hover:text-emerald-300">Katalog</a>
@@ -51,7 +51,7 @@
       <a id="heroWA" href="#" target="_blank" data-i18n="cta_wa" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700"></a>
     </div>
     <div class="mt-6 grid grid-cols-3 gap-3 text-center text-xs">
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" id="statUnits">—</div><div data-i18n="stat_units" class="text-slate-400"></div></div>
+      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" id="statUnits">â€”</div><div data-i18n="stat_units" class="text-slate-400"></div></div>
       <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_uptime">Hampir 24/7</div><div data-i18n="stat_uptime_sub" class="text-slate-400"></div></div>
       <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_full">Full</div><div data-i18n="stat_rdp" class="text-slate-400"></div></div>
     </div>
@@ -63,16 +63,16 @@
   <div class="flex items-end gap-3 mb-4">
     <h2 data-i18n="katalog_title" class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
     <span data-i18n="katalog_sub" class="text-xs text-slate-400">status terkini dari server</span>
-    <button id="btnRefresh" data-i18n="btn_refresh" class="ml-auto text-xs px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">↻ Muat Ulang</button>
+    <button id="btnRefresh" data-i18n="btn_refresh" class="ml-auto text-xs px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">â†» Muat Ulang</button>
   </div>
   <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 </section>
 
 <!-- CARA -->
 <section id="cara" class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-4">
-  <div class="card rounded-2xl p-5"><div class="text-2xl">1️⃣</div><h3 data-i18n="cara_title_1" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">2️⃣</div><h3 data-i18n="cara_title_2" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">3️⃣</div><h3 data-i18n="cara_title_3" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">1ï¸âƒ£</div><h3 data-i18n="cara_title_1" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">2ï¸âƒ£</div><h3 data-i18n="cara_title_2" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p></div>
+  <div class="card rounded-2xl p-5"><div class="text-2xl">3ï¸âƒ£</div><h3 data-i18n="cara_title_3" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p></div>
 </section>
 
 <!-- FAQ -->
@@ -86,20 +86,20 @@
   </div>
 </section>
 
-<!-- DASHBOARD PINDAH KE URL SENDIRI: penyewa -> /app • admin -> /admin -->
+<!-- DASHBOARD PINDAH KE URL SENDIRI: penyewa -> /app â€¢ admin -> /admin -->
 
 <footer class="border-t border-slate-800 mt-10">
   <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
-    <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian — Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline" href="/app" data-i18n="nav_dashboard">Dashboard</a> • <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a> • API: <a class="underline" href="/api/health">/api/health</a></span>
+    <span data-i18n="footer_copy">Â© 2026 Rental PC by Miriprian â€” Bare metal rental.</span>
+    <span class="ml-auto"><a class="underline" href="/app" data-i18n="nav_dashboard">Dashboard</a> â€¢ <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a> â€¢ API: <a class="underline" href="/api/health">/api/health</a></span>
     <select id="langSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Language / Bahasa">
-      <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
-      <option value="en" data-i18n="ln_en">🇬🇧 English</option>
+      <option value="id" data-i18n="ln_id">ðŸ‡®ðŸ‡© Bahasa Indonesia</option>
+      <option value="en" data-i18n="ln_en">ðŸ‡¬ðŸ‡§ English</option>
     </select>
     <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
-      <option value="system" data-i18n="ln_system">🖥️ System</option>
-      <option value="light" data-i18n="ln_light">☀️ Light</option>
-      <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
+      <option value="system" data-i18n="ln_system">ðŸ–¥ï¸ System</option>
+      <option value="light" data-i18n="ln_light">â˜€ï¸ Light</option>
+      <option value="dark" data-i18n="ln_dark">ðŸŒ™ Dark</option>
     </select>
   </div>
 </footer>
@@ -107,7 +107,7 @@
 <!-- AUTH MODAL -->
 <dialog id="authModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(440px,95vw)]">
   <div class="p-6">
-    <div class="flex items-center mb-4"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('authModal').close()">✕</button></div>
+    <div class="flex items-center mb-4"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('authModal').close()">âœ•</button></div>
     <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
       <button id="tabLogin" data-i18n="tab_login" class="py-2 rounded-lg bg-emerald-600 font-bold">Login</button>
       <button id="tabReg" data-i18n="tab_reg" class="py-2 rounded-lg bg-slate-800">Daftar</button>
@@ -132,7 +132,7 @@
 <!-- ORDER MODAL -->
 <dialog id="orderModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(520px,95vw)]">
   <div class="p-6">
-    <div class="flex items-center mb-2"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('orderModal').close()">✕</button></div>
+    <div class="flex items-center mb-2"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('orderModal').close()">âœ•</button></div>
     <div id="orderPC" class="text-sm text-slate-300 mb-4"></div>
     <label data-i18n="ph_plan" class="text-xs text-slate-400"></label>
     <select id="orderPlan" class="w-full mt-1 mb-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"></select>
@@ -150,7 +150,7 @@
 </dialog>
 
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
-<script src="/js/i18n.js?v=14"></script>
+<script src="/js/i18n.js?v=15"></script>
   <script src="/js/common.js?v=13"></script>
   <script src="/js/landing.js?v=6"></script>
 </body>

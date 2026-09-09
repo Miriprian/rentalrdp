@@ -3,6 +3,7 @@ import { one, all, q } from "../db/query";
 import { currentUser, isAdmin } from "../lib/guard";
 import { audit, clientIp } from "../lib/utils";
 import { sha256, randomToken } from "../lib/crypto";
+import { randomInt } from "node:crypto";
 
 function denied(set: { status?: number }) {
   set.status = 403;
@@ -172,6 +173,50 @@ export const pcRoutes = new Elysia()
     await audit("pc.delete", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, ip: clientIp(request) });
     return { ok: true, message: "PC dihapus" };
   })
+  .post("/api/admin/pcs/:id/rent-user", async ({ params, request, set }) => {
+    // Buat akun RDP manual seperti ada yang rental (tanpa order): agent bikinkan user OS.
+    const me = await currentUser(request);
+    if (!me || !isAdmin(me.role)) return denied(set);
+    const pc = await one(`SELECT id, code FROM pcs WHERE id=$1`, [params.id]);
+    if (!pc) {
+      set.status = 404;
+      return { ok: false, message: "PC tidak ditemukan" };
+    }
+    const digits = (n: number) => Array.from({ length: n }, () => randomInt(0, 10)).join("");
+    const username = "rent_" + digits(8);
+    const password = "pass_" + digits(12);
+    await q(
+      `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','create_user',$3,'pending')`,
+      [crypto.randomUUID(), params.id, JSON.stringify({ username, password })]
+    );
+    await audit("pc.manual_rent_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
+    return { ok: true, message: `Tugas create_user dikirim ke agent (${username}).`, username, password };
+  })
+  .post(
+    "/api/admin/pcs/:id/delete-user",
+    async ({ params, request, set, body }) => {
+      // Hapus akun RDP lain di PC itu (mis. akun manual/sisa sewa): agent jalankan delete_user.
+      const me = await currentUser(request);
+      if (!me || !isAdmin(me.role)) return denied(set);
+      const username = String((body as { username?: unknown })?.username || "").trim();
+      if (!username || !/^[A-Za-z0-9_@.\-]{1,32}$/.test(username)) {
+        set.status = 400;
+        return { ok: false, message: "Username tidak valid (A-Z 0-9 _ @ . - , maks 32)" };
+      }
+      const pc = await one(`SELECT id, code FROM pcs WHERE id=$1`, [params.id]);
+      if (!pc) {
+        set.status = 404;
+        return { ok: false, message: "PC tidak ditemukan" };
+      }
+      await q(
+        `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','delete_user',$3,'pending')`,
+        [crypto.randomUUID(), params.id, JSON.stringify({ username })]
+      );
+      await audit("pc.manual_del_user", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, meta: { username }, ip: clientIp(request) });
+      return { ok: true, message: `Tugas delete_user dikirim ke agent (${username}).` };
+    },
+    { body: t.Object({ username: t.Optional(t.String()) }) }
+  )
   .post("/api/pcs/:id/regen-token", async ({ params, request, set }) => {
     const me = await currentUser(request);
     if (!me || !isAdmin(me.role)) return denied(set);
