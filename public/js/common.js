@@ -57,10 +57,7 @@ function specHtml(p) {
   if (p.motherboard) rows.push([t("spec_mb"), esc(p.motherboard) + (hw.ramType ? ` (${esc(hw.ramType)})` : "")]);
   if (p.cpu) {
     rows.push([t("spec_cpu"), esc(p.cpu) + (hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : "")]);
-    if (hw.cpuCores) {
-      rows.push([t("spec_core"), String(hw.cpuCores)]);
-      rows.push([t("spec_threads"), String(hw.cpuThreads || hw.cpuCores)]);
-    }
+    if (hw.cpuCores) rows.push([t("spec_core_threads"), `${hw.cpuCores} / ${hw.cpuThreads || hw.cpuCores}`]);
   }
   if (p.gpu) {
     let s = esc(p.gpu);
