@@ -1467,7 +1467,8 @@ function coreFileHashes(): Record<string, string> {
   return out;
 }
 
-// Anti shutdown-iseng (A+B): sembunyikan tombol Power + cabut hak shutdown penyewa.
+// Proteksi power: sembunyikan tombol Power (NoClose) + pulihkan hak shutdown Administrators
+// (dibutuhkan agar restart shortcut "shutdown /r /t 0" jalan; countdown iseng dibatalkan loop).
 let lastPolicyApply = 0;
 async function hardenPowerPolicy(): Promise<void> {
   if (process.platform !== "win32" || !(await isWindowsAdmin())) return;
@@ -1476,31 +1477,22 @@ async function hardenPowerPolicy(): Promise<void> {
   lastPolicyApply = now;
   // (A) Sembunyikan perintah Shutdown/Restart dari Start menu & lock screen.
   await runExe(["reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "/v", "NoClose", "/t", "REG_DWORD", "/d", "1", "/f"]).catch(() => {});
-  // (B) SeShutdownPrivilege hanya untuk SYSTEM/LOCAL SERVICE/NETWORK SERVICE
-  //     (Administrators SID 544 DICABUT) → penyewa tak bisa shutdown/restart via OS;
-  //     agent (berjalan sebagai SYSTEM) TETAP bisa restart dari dashboard.
+  // (B) SeShutdownPrivilege dipulihkan untuk Administrators (SID 544) — DIBUTUHKAN karena
+  //     restart penyewa dipicu langsung lewat "shutdown.exe /r /t 0" (kunci dari host).
+  //     Windows punya SATU hak untuk shutdown+restart sekaligus; tanpanya restart gagal.
   try {
     const tmp = process.env.TEMP || "C:\\Windows\\Temp";
     const inf = join(tmp, "rp_secd.inf");
-    writeFileSync(inf, `[Version]\nsignature="$CHICAGO$"\nRevision=1\n[Privilege Rights]\nSeShutdownPrivilege = S-1-5-18,S-1-5-19,S-1-5-20\n`);
+    writeFileSync(inf, `[Version]\nsignature="$CHICAGO$"\nRevision=1\n[Privilege Rights]\nSeShutdownPrivilege = S-1-5-18,S-1-5-19,S-1-5-20,S-1-5-32-544\n`);
     const r = await runExe(["secedit", "/configure", "/db", `${process.env.windir || "C:\\Windows"}\\security\\db\\secedit.sdb`, "/cfg", inf, "/areas", "USER_RIGHTS", "/log", join(tmp, "rp_secd.log")]);
     if (!r.ok) clog(`hardenPowerPolicy/secedit: ${r.out.slice(0, 120)}`);
     await runExe(["secedit", "/refreshpolicy", "machine_policy", "/enforce"]).catch(() => {});
-    clog("Anti-shutdown-iseng aktif (NoClose=1 + privilege shutdown dicabut dari Administrators).");
-    // Task SYSTEM permanen untuk restart penyewa + shortcut "Restart PC" di desktop publik.
-    // Renter cuma MENJALANKAN task ("schtasks /run") — eksekusinya tetap SYSTEM, jadi berhasil
-    // meskipun SeShutdownPrivilege sudah dicabut dari Administrators. Bebas dari watcher agent.
+    clog("Proteksi power: tombol disembunyikan (NoClose=1), privilege dikembalikan ke Administrators.");
+    // Bersihkan task SYSTEM lama dari v32 (sudah tidak dipakai).
+    await runExe(["schtasks", "/delete", "/tn", "rentalrdp-renrestart", "/f"]).catch(() => {});
+    // Shortcut "Restart PC" di desktop publik → langsung "shutdown /r /t 0" (kunci host).
     const windir = process.env.windir || "C:\\Windows";
-    await runExe([
-      "schtasks", "/create", "/f",
-      "/tn", "rentalrdp-renrestart",
-      "/tr", `"${windir}\\System32\\shutdown.exe -r -t 5"`,
-      "/sc", "once", "/st", "00:00", "/ru", "SYSTEM", "/rl", "highest",
-    ]).catch(() => {});
-    // Nonaktifkan agar TIDAK auto-run tengah malam (jeda /sc once 00:00); tetap bisa
-    // dijalankan manual via "schtasks /run" (task disabled tetap bisa di-run paksa).
-    await runExe(["schtasks", "/change", "/tn", "rentalrdp-renrestart", "/disable"]).catch(() => {});
-    const ps2 = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('C:\\Users\\Public\\Desktop\\Restart PC.lnk');$s.TargetPath='" + windir + "\\System32\\schtasks.exe';$s.Arguments='/run /tn rentalrdp-renrestart';$s.Description='Restart PC ini (jeda 5 detik)';$s.IconLocation='" + windir + "\\System32\\shell32.dll,27';$s.Save()";
+    const ps2 = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('C:\\Users\\Public\\Desktop\\Restart PC.lnk');$s.TargetPath='" + windir + "\\System32\\shutdown.exe';$s.Arguments='/r /t 0';$s.Description='Restart PC ini';$s.IconLocation='" + windir + "\\System32\\shell32.dll,27';$s.Save()";
     await runExe(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps2]).catch(() => {});
   } catch (e) {
     clog("hardenPowerPolicy gagal: " + String(e).slice(0, 120));
