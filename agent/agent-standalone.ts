@@ -130,6 +130,17 @@ function saveConfig(c: Config) {
       writeFileSync(join(STABLE_DIR, ".cfg.last"), JSON.stringify(c, null, 2));
     }
   } catch {}
+  // SALINAN KANONIK di lokasi permanen: apapun di mana config diubah (mis. wizard dijalankan
+  // dari folder exe versi lain), folder permanen selalu ikut di-sinkron. Hasilnya agent yang
+  // jalan dari C:\ProgramData\rentalrdp-agent\ selalu punya config.json fisik (bukan cuma
+  // "terdeteksi" dari folder asal).
+  if (process.platform === "win32" && CONFIG_FILE !== join(STABLE_DIR, "config.json")) {
+    try {
+      mkdirSync(STABLE_DIR, { recursive: true });
+      writeFileSync(join(STABLE_DIR, "config.json"), JSON.stringify(c, null, 2));
+      writeFileSync(join(STABLE_DIR, ".cfg.last"), JSON.stringify(c, null, 2));
+    } catch {}
+  }
 }
 
 function setConfigFlag(key: keyof Config, val: boolean) {
@@ -1463,6 +1474,16 @@ async function selfHealFiles(): Promise<void> {
         const j = readFileSync(cfgPath, "utf8");
         const o = JSON.parse(j) as Config;
         if (o.api && o.token) writeFileSync(snapPath, j);
+      } catch {}
+    }
+    // Pastikan config fisik di folder PERMANEN selalu ada — apapun di mana config dipakai,
+    // agent yang jalan dari sana tidak bergantung pada "config terdeteksi" di folder lain.
+    if (process.platform === "win32" && !existsSync(join(STABLE_DIR, "config.json")) && cfgValid(memCfg)) {
+      try {
+        const json = JSON.stringify(memCfg, null, 2);
+        writeFileSync(join(STABLE_DIR, "config.json"), json);
+        writeFileSync(join(STABLE_DIR, ".cfg.last"), json);
+        pushHealth("warning", "config.json di folder permanen hilang — disalin dari memori.");
       } catch {}
     }
     // 2) watchdog.bat di lokasi permanen — selalu ada (isi baku).
