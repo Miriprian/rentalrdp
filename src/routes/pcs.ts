@@ -243,6 +243,26 @@ export const pcRoutes = new Elysia()
     },
     { body: t.Object({ username: t.Optional(t.String()) }) }
   )
+  .post(
+    "/api/admin/pcs/:id/restart",
+    async ({ params, request, set }) => {
+      // Restart PC fisik dari dashboard admin: agent menjalankan shutdown /r /t 5.
+      const me = await currentUser(request);
+      if (!me || !isAdmin(me.role)) return denied(set);
+      const pc = await one(`SELECT id FROM pcs WHERE id=$1`, [params.id]);
+      if (!pc) {
+        set.status = 404;
+        return { ok: false, message: "PC tidak ditemukan" };
+      }
+      await q(
+        `INSERT INTO agent_tasks (id, pc_id, rental_id, type, payload_json, status) VALUES ($1,$2,'','restart',$3,'pending')`,
+        [crypto.randomUUID(), params.id, JSON.stringify({})]
+      );
+      await audit("pc.restart", { actorId: me.id, actorName: me.username, entity: "pcs", entityId: params.id, ip: clientIp(request) });
+      return { ok: true, message: "Tugas restart dikirim ke agent — PC akan reboot dalam ±5 detik." };
+    },
+    { body: t.Object({}) }
+  )
   .get("/api/admin/rent-accounts", async ({ request, set }) => {
     // Daftar akun RDP (manual) terbaru — bisa dicek kalau admin lupa copy saat bikin.
     const me = await currentUser(request);

@@ -94,6 +94,7 @@ async function adminPcsHtml() {
           <button onclick="regenToken('${p.id}')" class="px-4 py-2 rounded-lg bg-amber-700">${t("btn_token")}</button>
           <button onclick="mkRentUser('${p.id}')" class="px-4 py-2 rounded-lg bg-emerald-800">${t("btn_mk_manual")}</button>
           <button onclick="rmRentUser('${p.id}','${esc(p.code)}')" class="px-4 py-2 rounded-lg bg-red-800">${t("btn_rm_manual")}</button>
+          <button onclick="restartPc('${p.id}')" class="px-4 py-2 rounded-lg bg-amber-800">${t("btn_restart")}</button>
           <button onclick="delPc('${p.id}')" class="px-4 py-2 rounded-lg bg-red-800">${t("btn_delete")}</button>
         </div>
         <div class="text-xs text-slate-500 mt-1"><span class="md:inline-block pr-2">${t("price_day_1")}<b class="text-emerald-300">${rupiah(p.price_hourly)}${t("price_suffix")}</b></span><span class="md:inline-block">${rupiah(p.price_daily)}/hari • ${rupiah(p.price_weekly)}/minggu • ${rupiah(p.price_monthly)}/bulan</span></div>
@@ -196,6 +197,11 @@ window.rmRentUser = async function (id, code) {
   const u = prompt(`${t("rm_prompt")} (${code})`);
   if (!u || !u.trim()) return;
   const r = await api(`/api/admin/pcs/${id}/delete-user`, { method: "POST", body: JSON.stringify({ username: u.trim() }) });
+  toast(r.message || "OK"); renderBody();
+};
+window.restartPc = async function (id) {
+  if (!confirm(t("confirm_restart"))) return;
+  const r = await api(`/api/admin/pcs/${id}/restart`, { method: "POST" });
   toast(r.message || "OK"); renderBody();
 };
 
