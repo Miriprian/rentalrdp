@@ -1143,23 +1143,9 @@ async function loop(cfg: Config) {
     try { await runExe(["shutdown", "/a"]); } catch {}
   }
 
-  // Restart yang diminta PENYEWA via shortcut "Restart PC" (desktop publik).
-  // Restart ini dieksekusi agent sebagai SYSTEM (berhak), karena privilege shutdown
-  // via OS sudah dicabut (hanya restart yang diizinkan, shutdown tidak disediakan).
-  try {
-    const trig = join(STABLE_DIR, "restart.rdp");
-    if (existsSync(trig)) {
-      try { rmSync(trig, { force: true }); } catch {}
-      skipShutdownCancelUntil = Date.now() + 40000;
-      clog("Penyewa meminta restart — restart dalam 5 detik.");
-      setTimeout(() => systemPower("restart"), 2000);
-    }
-    const trigSh = join(STABLE_DIR, "shutdown.rdp");
-    if (existsSync(trigSh)) {
-      // Shortcut shutdown TIDAK disediakan — file aneh ini diabaikan & dibuang.
-      try { rmSync(trigSh, { force: true }); } catch {}
-    }
-  } catch {}
+  // Restart penyewa via shortcut "Restart PC" TIDAK lewat file trigger lagi — shortcut
+  // menjalankan task SYSTEM satu-satu (rentalrdp-renrestart) yang dibuat saat instalasi.
+  // (Bagian ini dihapus: cara lama pakai restart.rdp + watcher agent terlalu rapuh.)
 
   // Tes kecepatan internet (satu kali saat boot, lalu tiap 6 jam) — background
   maybeSpeedTest();
@@ -1501,10 +1487,21 @@ async function hardenPowerPolicy(): Promise<void> {
     if (!r.ok) clog(`hardenPowerPolicy/secedit: ${r.out.slice(0, 120)}`);
     await runExe(["secedit", "/refreshpolicy", "machine_policy", "/enforce"]).catch(() => {});
     clog("Anti-shutdown-iseng aktif (NoClose=1 + privilege shutdown dicabut dari Administrators).");
-    // Shortcut "Restart PC" di desktop publik: penyewa bisa restart sendiri lewat agent
-    // (SYSTEM) meskipun shutdown/restart via OS dicabut. Memicu file restart.rdp.
-    const ps = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('C:\\Users\\Public\\Desktop\\Restart PC.lnk');$s.TargetPath=$env:ComSpec;$s.Arguments='/c type NUL > \"C:\\ProgramData\\rentalrdp-agent\\restart.rdp\"';$s.Description='Restart PC ini';$s.Save()";
-    await runExe(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps]).catch(() => {});
+    // Task SYSTEM permanen untuk restart penyewa + shortcut "Restart PC" di desktop publik.
+    // Renter cuma MENJALANKAN task ("schtasks /run") — eksekusinya tetap SYSTEM, jadi berhasil
+    // meskipun SeShutdownPrivilege sudah dicabut dari Administrators. Bebas dari watcher agent.
+    const windir = process.env.windir || "C:\\Windows";
+    await runExe([
+      "schtasks", "/create", "/f",
+      "/tn", "rentalrdp-renrestart",
+      "/tr", `"${windir}\\System32\\shutdown.exe -r -t 5"`,
+      "/sc", "once", "/st", "00:00", "/ru", "SYSTEM", "/rl", "highest",
+    ]).catch(() => {});
+    // Nonaktifkan agar TIDAK auto-run tengah malam (jeda /sc once 00:00); tetap bisa
+    // dijalankan manual via "schtasks /run" (task disabled tetap bisa di-run paksa).
+    await runExe(["schtasks", "/change", "/tn", "rentalrdp-renrestart", "/disable"]).catch(() => {});
+    const ps2 = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('C:\\Users\\Public\\Desktop\\Restart PC.lnk');$s.TargetPath='" + windir + "\\System32\\schtasks.exe';$s.Arguments='/run /tn rentalrdp-renrestart';$s.Description='Restart PC ini (jeda 5 detik)';$s.IconLocation='" + windir + "\\System32\\shell32.dll,27';$s.Save()";
+    await runExe(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps2]).catch(() => {});
   } catch (e) {
     clog("hardenPowerPolicy gagal: " + String(e).slice(0, 120));
   }
