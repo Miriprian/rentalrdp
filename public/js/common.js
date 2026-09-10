@@ -55,7 +55,11 @@ const ago = (ts) => {
   const ms = Date.now() - d;
   if (isNaN(d) || ms < 0) return t("just_now");
   const mn = Math.floor(ms / 60000);
-  if (mn < 1) return t("just_now");
+  if (mn < 1) {
+    const sc = Math.floor(ms / 1000);
+    if (sc <= 4) return t("just_now");
+    return t("sec_ago", { n: sc });
+  }
   if (mn < 60) return t("min_ago", { n: mn });
   const hr = Math.floor(mn / 60);
   if (hr < 24) return t("hour_ago", { n: hr });
