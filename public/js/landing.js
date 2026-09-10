@@ -8,7 +8,11 @@ async function loadPublic() {
   landing.settings = settings.data || {};
   $("#statUnits").textContent = landing.pcs.length || "—";
   const noticeEl = $("#noticeBox");
-  if (noticeEl) noticeEl.textContent = landing.settings.notice || "";
+  if (noticeEl) {
+    const n = landing.settings.notice || "";
+    noticeEl.textContent = n;
+    noticeEl.classList.toggle("hidden", !n);
+  }
   const wa = (landing.settings.wa_admin || "").replace(/\D/g, "");
   if (wa) $("#heroWA").href = `https://wa.me/${wa}?text=${encodeURIComponent(t("wa_text"))}`;
   renderPcs();
@@ -20,26 +24,26 @@ function renderPcs() {
   const g = $("#pcGrid");
   if (!landing.pcs.length) { g.innerHTML = `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("empty_units")}</div>`; return; }
   g.innerHTML = landing.pcs.map((p) => `
-    <div class="card rounded-2xl p-5 flex flex-col">
-      <div class="flex items-center gap-2 mb-1">
-        <span class="mono text-xs text-slate-400">${esc(p.code)}</span>
+    <div class="card card-hover rounded-2xl p-5 flex flex-col overflow-hidden">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="chip chip-outline mono">${esc(p.code)}</span>
         <span class="ml-auto">${statusBadge(p.status)}</span>
       </div>
-      <div class="font-extrabold">${esc(p.name)}</div>
-      <div class="text-[11px] mt-0.5 text-emerald-300 font-bold tracking-wide">BARE METAL</div>
+      <div class="font-extrabold text-lg leading-snug">${esc(p.name)}</div>
+      <div class="text-[11px] mt-1 text-emerald-300 font-bold tracking-wide">BARE METAL</div>
       ${specHtml(p)}
-      <p class="text-xs text-slate-400 mt-2">${esc(p.description || "")}</p>
+      <p class="text-xs text-slate-400 mt-2 line-clamp-2">${esc(p.description || "")}</p>
       <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
-        <div class="bg-slate-800 rounded-lg p-2">${t("lbl_hour")}<br/><b class="text-emerald-300">${rupiah(p.price_hourly)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">${t("lbl_day")}<br/><b class="text-emerald-300">${rupiah(p.price_daily)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">${t("lbl_week")}<br/><b class="text-emerald-300">${rupiah(p.price_weekly)}</b></div>
-        <div class="bg-slate-800 rounded-lg p-2">${t("lbl_month")}<br/><b class="text-emerald-300">${rupiah(p.price_monthly)}</b></div>
+        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_hour")}<br/><b class="text-emerald-300">${rupiah(p.price_hourly)}</b></div>
+        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_day")}<br/><b class="text-emerald-300">${rupiah(p.price_daily)}</b></div>
+        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_week")}<br/><b class="text-emerald-300">${rupiah(p.price_weekly)}</b></div>
+        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_month")}<br/><b class="text-emerald-300">${rupiah(p.price_monthly)}</b></div>
       </div>
       <button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
-        class="mt-4 py-3 rounded-xl font-bold ${p.status === "available" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-slate-800 text-slate-500"}">
+        class="btn btn-block mt-4 ${p.status === "available" ? "btn-primary" : "btn-ghost !text-slate-500"}">
         ${p.status === "available" ? t("btn_rent_now") : t("btn_unavailable")}
       </button>
-      ${p.status === "offline" || p.status === "maintenance" ? `<div class="mt-2 text-[11px] text-red-300 font-semibold">${t("pc_unavailable_note")}</div>` : ""}
+      ${p.status === "offline" || p.status === "maintenance" ? `<div class="mt-2 text-[11px] text-red-300 font-semibold flex items-center gap-1"><span class="dot dot-off"></span>${t("pc_unavailable_note")}</div>` : ""}
     </div>`).join("");
 }
 

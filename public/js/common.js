@@ -42,10 +42,33 @@ const rupiah = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 function dl(h) { const d = new Date(h); const ms = d.getTime() - Date.now(); if (ms <= 0) return "berakhir"; const H = Math.floor(ms / 3600000), M = Math.floor((ms % 3600000) / 60000); if (H > 48) return Math.floor(H / 24) + " hari lagi"; return `${H}j ${M}m lagi`; }
 function statusBadge(s) {
-  const m = { available: [t("status_available"), "bg-emerald-600"], rented: [t("status_rented"), "bg-red-600"], maintenance: [t("status_maintenance"), "bg-amber-600"], offline: [t("status_offline"), "bg-slate-600"] };
-  const [label, c] = m[s] || [s, "bg-slate-600"];
-  return `<span class="text-[11px] px-2 py-1 rounded-full ${c} font-bold">${label}</span>`;
+  const m = { available: ["chip-emerald", t("status_available")], rented: ["chip-red", t("status_rented")], maintenance: ["chip-amber", t("status_maintenance")], offline: ["chip-slate", t("status_offline")] };
+  const [c, label] = m[s] || ["chip-slate", s];
+  return `<span class="chip ${c}">${label}</span>`;
 }
+// Kecil-kecil chip generik: chip(text, variant) dengan variant: emerald|red|amber|slate|outline
+const chip = (text, variant = "slate") => `<span class="chip chip-${variant}">${text}</span>`;
+// Waktu relatif (id/en) untuk last_seen dsb.
+const ago = (ts) => {
+  if (!ts) return "—";
+  const d = new Date(ts).getTime();
+  const ms = Date.now() - d;
+  if (isNaN(d) || ms < 0) return t("just_now");
+  const mn = Math.floor(ms / 60000);
+  if (mn < 1) return t("just_now");
+  if (mn < 60) return t("min_ago", { n: mn });
+  const hr = Math.floor(mn / 60);
+  if (hr < 24) return t("hour_ago", { n: hr });
+  const dy = Math.floor(hr / 24);
+  if (dy < 7) return t("day_ago", { n: dy });
+  return new Date(ts).toLocaleDateString(langState.lang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "short", year: "2-digit" });
+};
+// Agent dianggap online bila last_seen < 5 menit lalu
+const agentOnline = (p) => {
+  try { return !!p.last_seen_at && Date.now() - new Date(p.last_seen_at).getTime() < 5 * 60000; } catch { return false; }
+};
+// Titik status agent + label online/offline
+const agentDotHtml = (p) => `<span class="dot ${agentOnline(p) ? "dot-on" : "dot-off"}"></span> <span class="text-xs ${agentOnline(p) ? "text-emerald-300" : "text-slate-400"} font-semibold">${agentOnline(p) ? t("lbl_online") : t("lbl_offline")}</span>`;
 const isAdminRole = (r) => r === "admin" || r === "superadmin";
 
 // Spek lengkap ala AIDA64: label kiri rata kanan (titik dua sejajar kebawah), nilai kanan. Tanpa emoji.
@@ -116,9 +139,9 @@ function loginCardHtml(target) {
   return `<div class="card rounded-2xl p-6 max-w-md mx-auto text-sm space-y-3">
     <h2 class="font-extrabold text-lg">${t("login_first_title")}</h2>
     <p class="text-slate-400 text-xs">${esc(t("login_first_desc", { target }))}</p>
-    <input id="liUser" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="${esc(t("ph_username"))}" autocomplete="username"/>
-    <input id="liPass" type="password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="${esc(t("ph_password"))}" autocomplete="current-password"/>
-    <button onclick="inlineLogin('${target}')" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">${t("tab_login")}</button>
+    <input id="liUser" class="input" placeholder="${esc(t("ph_username"))}" autocomplete="username"/>
+    <input id="liPass" type="password" class="input" placeholder="${esc(t("ph_password"))}" autocomplete="current-password"/>
+    <button onclick="inlineLogin('${target}')" class="btn btn-primary btn-block">${t("tab_login")}</button>
     <div class="text-xs text-slate-400">${t("no_account")}</div>
     <div id="loginMsg" class="text-xs text-amber-300"></div>
   </div>`;
@@ -131,11 +154,11 @@ window.inlineLogin = async function (target) {
 
 // Blok ganti password dipakai di /app & /admin
 function akunHtml() {
-  return `<div class="card rounded-xl p-5 max-w-md text-sm space-y-3">
-    <div>${t("akun_username")}<b>${esc(state.me.username)}</b> • ${t("akun_email")}${esc(state.me.email || "")}</div>
-    <input id="oldP" type="password" placeholder="${esc(t("ph_old_pass"))}" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
-    <input id="newP" type="password" placeholder="${esc(t("ph_new_pass"))}" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"/>
-    <button onclick="changePass()" class="px-5 py-3 rounded-xl bg-emerald-600 font-bold">${t("btn_change_pass")}</button>
+  return `<div class="card rounded-2xl p-6 max-w-md text-sm space-y-3">
+    <div class="text-xs">${t("akun_username")}<b>${esc(state.me.username)}</b> • ${t("akun_email")}${esc(state.me.email || "")}</div>
+    <input id="oldP" type="password" placeholder="${esc(t("ph_old_pass"))}" class="input"/>
+    <input id="newP" type="password" placeholder="${esc(t("ph_new_pass"))}" class="input"/>
+    <button onclick="changePass()" class="btn btn-primary">${t("btn_change_pass")}</button>
     ${state.me.username === "obake" ? `<div class="text-xs text-amber-300">${t("warn_obake")}</div>` : ""}
   </div>`;
 }

@@ -10,45 +10,45 @@
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
 <style>
-  body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
-  .card{background:#0f172a;border:1px solid #1e293b}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-<header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
+<body class="min-h-screen">
+<header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <a href="/" class="text-2xl" title="Beranda">🖥️</a>
+    <a href="/" class="text-2xl select-none" title="Beranda">🖥️</a>
     <div>
       <div class="font-extrabold text-lg leading-none">Rental PC<span class="text-emerald-400"> by Miriprian</span></div>
       <div data-i18n="tagline_user" class="text-[11px] text-slate-400">Dashboard Penyewa</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="/" data-i18n="nav_kembali_katalog" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">← Katalog</a>
-      <a id="btnAdminLink" href="/admin" data-i18n="nav_admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
+      <a href="/" data-i18n="nav_kembali_katalog" class="btn btn-ghost btn-sm">← Katalog</a>
+      <a id="btnAdminLink" href="/admin" data-i18n="nav_admin" class="hidden btn btn-amber btn-sm">Admin</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <button id="btnLogout" data-i18n="nav_keluar" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+      <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
     </nav>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto px-4 py-8" id="dashWrap">
-  <h1 class="text-2xl font-extrabold mb-1">Dashboard Saya</h1>
-  <div id="dashRole" class="text-xs text-slate-400 mb-2"></div>
+  <div class="flex flex-wrap items-end gap-3 mb-1">
+    <h1 class="text-2xl font-extrabold">Dashboard Saya</h1>
+    <div id="dashRole" class="text-xs text-slate-400 mb-1"></div>
+  </div>
   <div id="adminHint" class="hidden text-xs mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">Kamu login sebagai admin — kelola sistem di <a href="/admin" class="underline font-bold">/admin →</a></div>
-  <div class="flex flex-wrap gap-2 mb-4 text-sm" id="dashTabs"></div>
+  <div class="tabs mb-5" id="dashTabs"></div>
   <div id="dashBody"></div>
 </main>
 
 <footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-3">
     <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian — Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline" href="/" data-i18n="nav_beranda">Beranda</a> • <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a></span>
-    <select id="langSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Language / Bahasa">
+    <span class="ml-auto"><a class="underline hover:text-emerald-300" href="/" data-i18n="nav_beranda">Beranda</a> • <a class="underline hover:text-emerald-300" href="/admin" data-i18n="nav_admin">Admin</a></span>
+    <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
       <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
       <option value="en" data-i18n="ln_en">🇬🇧 English</option>
     </select>
-    <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
+    <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
       <option value="system" data-i18n="ln_system">🖥️ System</option>
       <option value="light" data-i18n="ln_light">☀️ Light</option>
       <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
@@ -57,8 +57,8 @@
 </footer>
 
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
-<script src="/js/i18n.js?v=23"></script>
-<script src="/js/common.js?v=13"></script>
-<script src="/js/user.js"></script>
+<script src="/js/i18n.js?v=24"></script>
+<script src="/js/common.js?v=14"></script>
+<script src="/js/user.js?v=2"></script>
 </body>
 </html>

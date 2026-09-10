@@ -10,93 +10,111 @@
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
 <style>
-  body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
-  .card{background:#0f172a;border:1px solid #1e293b}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-  dialog::backdrop{background:rgba(0,0,0,.6)}
-  .badge-bare{background:linear-gradient(90deg,#059669,#10b981)}
-  details>summary{cursor:pointer}
+  dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="min-h-screen">
 <!-- NAV -->
-<header class="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
+<header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="text-2xl">🖥️</div>
+    <div class="text-2xl select-none">🖥️</div>
     <div>
       <div class="font-extrabold text-lg leading-none">Rental PC<span class="text-emerald-400"> by Miriprian</span></div>
       <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare Metal • Perangkat Fisik • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 hover:text-emerald-300">Katalog</a>
-      <a href="#cara" data-i18n="nav_cara" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">Cara Sewa</a>
-      <a href="#faq" data-i18n="nav_faq" class="px-3 py-2 hover:text-emerald-300 hidden sm:inline">FAQ</a>
+      <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden sm:inline">Katalog</a>
+      <a href="#cara" data-i18n="nav_cara" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden md:inline">Cara Sewa</a>
+      <a href="#faq" data-i18n="nav_faq" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden md:inline">FAQ</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <a id="btnDash" href="/app" data-i18n="nav_dashboard" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Dashboard</a>
-      <a id="btnAdminNav" href="/admin" data-i18n="nav_admin" class="hidden px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 font-bold">Admin</a>
-      <button id="btnLogin" data-i18n="nav_masuk" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold">Masuk</button>
-      <button id="btnLogout" data-i18n="nav_keluar" class="hidden px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">Keluar</button>
+      <a id="btnDash" href="/app" data-i18n="nav_dashboard" class="hidden btn btn-ghost btn-sm">Dashboard</a>
+      <a id="btnAdminNav" href="/admin" data-i18n="nav_admin" class="hidden btn btn-amber btn-sm">Admin</a>
+      <button id="btnLogin" data-i18n="nav_masuk" class="btn btn-primary btn-sm">Masuk</button>
+      <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
     </nav>
   </div>
 </header>
 
 <!-- HERO -->
-<section class="max-w-7xl mx-auto px-4 pt-10 pb-6">
+<section class="max-w-7xl mx-auto px-4 pt-12 pb-8 hero-glow">
   <div class="max-w-4xl mx-auto text-center">
-    <div data-i18n="badge_bare" class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full badge-bare text-white mb-4"></div>
-    <h1 data-i18n-html="hero_h1" class="text-4xl md:text-5xl font-extrabold leading-tight"></h1>
-    <p data-i18n-html="hero_p" class="mt-4 text-slate-300 "></p>
-    <div class="mt-6 flex flex-wrap gap-3 justify-center">
-      <a href="#katalog" data-i18n="cta_katalog" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold"></a>
-      <a id="heroWA" href="#" target="_blank" data-i18n="cta_wa" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700"></a>
+    <div data-i18n="badge_bare" class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 mb-5 tracking-wide"></div>
+    <h1 data-i18n-html="hero_h1" class="text-4xl md:text-6xl font-extrabold leading-[1.1] tracking-tight"></h1>
+    <p data-i18n-html="hero_p" class="mt-5 text-base text-slate-300 max-w-2xl mx-auto"></p>
+    <div class="mt-7 flex flex-wrap gap-3 justify-center">
+      <a href="#katalog" data-i18n="cta_katalog" class="btn btn-primary btn-lg"></a>
+      <a id="heroWA" href="#" target="_blank" data-i18n="cta_wa" class="btn btn-ghost btn-lg"></a>
     </div>
-    <div class="mt-6 grid grid-cols-3 gap-3 text-center text-xs">
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" id="statUnits">—</div><div data-i18n="stat_units" class="text-slate-400"></div></div>
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_uptime">Hampir 24/7</div><div data-i18n="stat_uptime_sub" class="text-slate-400"></div></div>
-      <div class="card rounded-xl p-3"><div class="text-xl font-extrabold text-emerald-300" data-i18n="stat_full">Full</div><div data-i18n="stat_rdp" class="text-slate-400"></div></div>
+    <div class="mt-10 grid grid-cols-3 gap-4 max-w-2xl mx-auto text-center">
+      <div class="stat"><div class="text-2xl font-extrabold text-emerald-300" id="statUnits">—</div><div class="k mt-1" data-i18n="stat_units"></div></div>
+      <div class="stat"><div class="text-2xl font-extrabold text-emerald-300" data-i18n="stat_uptime">Hampir 24/7</div><div class="k mt-1" data-i18n="stat_uptime_sub"></div></div>
+      <div class="stat"><div class="text-2xl font-extrabold text-emerald-300" data-i18n="stat_full">Full</div><div class="k mt-1" data-i18n="stat_rdp"></div></div>
     </div>
   </div>
 </section>
 
 <!-- KATALOG -->
 <section id="katalog" class="max-w-7xl mx-auto px-4 py-8">
-  <div class="flex items-end gap-3 mb-4">
-    <h2 data-i18n="katalog_title" class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
-    <span data-i18n="katalog_sub" class="text-xs text-slate-400">status terkini dari server</span>
-    <button id="btnRefresh" data-i18n="btn_refresh" class="ml-auto text-xs px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700">↻ Muat Ulang</button>
+  <div id="noticeBox" class="hidden mb-4 text-sm px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200"></div>
+  <div class="flex items-end gap-3 mb-5">
+    <div>
+      <h2 data-i18n="katalog_title" class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
+      <span data-i18n="katalog_sub" class="text-xs text-slate-400">status terkini dari server</span>
+    </div>
+    <span class="ml-auto"><button id="btnRefresh" data-i18n="btn_refresh" class="btn btn-ghost btn-sm">↻ Muat Ulang</button></span>
   </div>
-  <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
 </section>
 
 <!-- CARA -->
-<section id="cara" class="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-3 gap-4">
-  <div class="card rounded-2xl p-5"><div class="text-2xl">1️⃣</div><h3 data-i18n="cara_title_1" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">2️⃣</div><h3 data-i18n="cara_title_2" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p></div>
-  <div class="card rounded-2xl p-5"><div class="text-2xl">3️⃣</div><h3 data-i18n="cara_title_3" class="font-bold mt-2"></h3><p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p></div>
+<section id="cara" class="max-w-7xl mx-auto px-4 py-10">
+  <h2 class="text-2xl font-extrabold text-center mb-6" data-i18n="cara_title">Cara Sewa</h2>
+  <div class="grid md:grid-cols-3 gap-5">
+    <div class="card card-hover rounded-2xl p-6">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">1</div>
+      <h3 data-i18n="cara_title_1" class="font-bold mb-1"></h3>
+      <p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p>
+    </div>
+    <div class="card card-hover rounded-2xl p-6">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">2</div>
+      <h3 data-i18n="cara_title_2" class="font-bold mb-1"></h3>
+      <p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p>
+    </div>
+    <div class="card card-hover rounded-2xl p-6">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">3</div>
+      <h3 data-i18n="cara_title_3" class="font-bold mb-1"></h3>
+      <p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p>
+    </div>
+  </div>
 </section>
 
 <!-- FAQ -->
-<section id="faq" class="max-w-7xl mx-auto px-4 py-8">
-  <h2 data-i18n="faq_title" class="text-2xl font-extrabold mb-4 text-center"></h2>
+<section id="faq" class="max-w-7xl mx-auto px-4 py-10">
+  <h2 data-i18n="faq_title" class="text-2xl font-extrabold mb-5 text-center"></h2>
   <div class="grid gap-3 text-sm max-w-3xl mx-auto">
-    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_1" class="font-bold"></summary><p data-i18n-html="faq_a_1" class="mt-2 text-slate-300"></p></details>
-    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_2" class="font-bold"></summary><p data-i18n-html="faq_a_2" class="mt-2 text-slate-300"></p></details>
-    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_3" class="font-bold"></summary><p data-i18n-html="faq_a_3" class="mt-2 text-slate-300"></p></details>
-    <details class="card rounded-xl p-4"><summary data-i18n="faq_q_4" class="font-bold"></summary><p data-i18n-html="faq_a_4" class="mt-2 text-slate-300"></p></details>
+    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_1" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_1" class="mt-2 text-slate-300"></p></details>
+    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_2" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_2" class="mt-2 text-slate-300"></p></details>
+    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_3" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_3" class="mt-2 text-slate-300"></p></details>
+    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_4" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_4" class="mt-2 text-slate-300"></p></details>
   </div>
 </section>
 
 <!-- DASHBOARD PINDAH KE URL SENDIRI: penyewa -> /app • admin -> /admin -->
 
 <footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-2">
+  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-3">
     <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian — Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline" href="/app" data-i18n="nav_dashboard">Dashboard</a> • <a class="underline" href="/admin" data-i18n="nav_admin">Admin</a> • API: <a class="underline" href="/api/health">/api/health</a></span>
-    <select id="langSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Language / Bahasa">
+    <span class="ml-auto flex flex-wrap items-center gap-2">
+      <a class="underline hover:text-emerald-300" href="/app" data-i18n="nav_dashboard">Dashboard</a> •
+      <a class="underline hover:text-emerald-300" href="/admin" data-i18n="nav_admin">Admin</a> •
+      API: <a class="underline hover:text-emerald-300" href="/api/health">/api/health</a>
+    </span>
+    <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
       <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
       <option value="en" data-i18n="ln_en">🇬🇧 English</option>
     </select>
-    <select id="themeSel" class="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs" title="Mode tampilan">
+    <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
       <option value="system" data-i18n="ln_system">🖥️ System</option>
       <option value="light" data-i18n="ln_light">☀️ Light</option>
       <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
@@ -105,53 +123,53 @@
 </footer>
 
 <!-- AUTH MODAL -->
-<dialog id="authModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(440px,95vw)]">
+<dialog id="authModal" class="rounded-2xl p-0 w-[min(440px,95vw)] shadow-2xl">
   <div class="p-6">
-    <div class="flex items-center mb-4"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('authModal').close()">✕</button></div>
-    <div class="grid grid-cols-2 gap-2 mb-4 text-sm">
-      <button id="tabLogin" data-i18n="tab_login" class="py-2 rounded-lg bg-emerald-600 font-bold">Login</button>
-      <button id="tabReg" data-i18n="tab_reg" class="py-2 rounded-lg bg-slate-800">Daftar</button>
+    <div class="flex items-center mb-5"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('authModal').close()">✕</button></div>
+    <div class="grid grid-cols-2 gap-2 mb-5 text-sm">
+      <button id="tabLogin" data-i18n="tab_login" class="btn btn-primary btn-sm">Login</button>
+      <button id="tabReg" data-i18n="tab_reg" class="btn btn-ghost btn-sm">Daftar</button>
     </div>
     <div id="loginForm" class="space-y-3">
-      <input id="liUser" data-i18n-ph="ph_username" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username / email" autocomplete="username"/>
-      <input id="liPass" type="password" data-i18n-ph="ph_password" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password" autocomplete="current-password"/>
-      <button id="doLogin" data-i18n="tab_login" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Masuk</button>
+      <input id="liUser" data-i18n-ph="ph_username" class="input" placeholder="username / email" autocomplete="username"/>
+      <input id="liPass" type="password" data-i18n-ph="ph_password" class="input" placeholder="password" autocomplete="current-password"/>
+      <button id="doLogin" data-i18n="tab_login" class="btn btn-primary btn-block">Masuk</button>
     </div>
     <div id="regForm" class="space-y-3 hidden">
-      <input id="rgUser" data-i18n-ph="ph_username_reg" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="username (3-24)" autocomplete="username"/>
-      <input id="rgEmail" data-i18n-ph="ph_email" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="email"/>
-      <input id="rgName" data-i18n-ph="ph_fullname" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="nama lengkap"/>
-      <input id="rgWA" data-i18n-ph="ph_wa" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="no. WA (08...)"/>
-      <input id="rgPass" type="password" data-i18n-ph="ph_passreg" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="password min 6" autocomplete="new-password"/>
-      <button id="doReg" data-i18n="tab_reg" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Daftar</button>
+      <input id="rgUser" data-i18n-ph="ph_username_reg" class="input" placeholder="username (3-24)" autocomplete="username"/>
+      <input id="rgEmail" data-i18n-ph="ph_email" class="input" placeholder="email"/>
+      <input id="rgName" data-i18n-ph="ph_fullname" class="input" placeholder="nama lengkap"/>
+      <input id="rgWA" data-i18n-ph="ph_wa" class="input" placeholder="no. WA (08...)"/>
+      <input id="rgPass" type="password" data-i18n-ph="ph_passreg" class="input" placeholder="password min 6" autocomplete="new-password"/>
+      <button id="doReg" data-i18n="tab_reg" class="btn btn-primary btn-block">Daftar</button>
     </div>
     <div id="authMsg" class="text-xs mt-3 text-amber-300"></div>
   </div>
 </dialog>
 
 <!-- ORDER MODAL -->
-<dialog id="orderModal" class="rounded-2xl bg-slate-900 text-slate-100 p-0 w-[min(520px,95vw)]">
+<dialog id="orderModal" class="rounded-2xl p-0 w-[min(520px,95vw)] shadow-2xl">
   <div class="p-6">
-    <div class="flex items-center mb-2"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400" onclick="document.getElementById('orderModal').close()">✕</button></div>
-    <div id="orderPC" class="text-sm text-slate-300 mb-4"></div>
+    <div class="flex items-center mb-3"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('orderModal').close()">✕</button></div>
+    <div id="orderPC" class="card rounded-xl p-3 text-sm text-slate-300 mb-4"></div>
     <label data-i18n="ph_plan" class="text-xs text-slate-400"></label>
-    <select id="orderPlan" class="w-full mt-1 mb-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"></select>
+    <select id="orderPlan" class="input mt-1 mb-3"></select>
     <div class="grid grid-cols-2 gap-3">
-      <div><label data-i18n="ph_voucher" class="text-xs text-slate-400"></label><input id="orderVoucher" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 mono" placeholder="WELCOME10"/></div>
-      <div><label data-i18n="ph_pay" class="text-xs text-slate-400"></label><select id="orderPay" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div>
+      <div><label data-i18n="ph_voucher" class="text-xs text-slate-400"></label><input id="orderVoucher" class="input mono mt-1" placeholder="WELCOME10"/></div>
+      <div><label data-i18n="ph_pay" class="text-xs text-slate-400"></label><select id="orderPay" class="input mt-1"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div>
     </div>
     <label data-i18n="ph_note" class="text-xs text-slate-400 mt-3 block"></label>
-    <input id="orderNote" class="w-full mt-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="kebutuhan: game apa, render, bot, dsb"/>
+    <input id="orderNote" class="input mt-1" placeholder="kebutuhan: game apa, render, bot, dsb"/>
     <div id="orderTotal" class="mt-3 text-sm font-bold text-emerald-300"></div>
     <div id="payInfo" class="mt-2 text-xs text-slate-300 bg-slate-800 rounded-xl p-3"></div>
-    <button id="doOrder" data-i18n="btn_order" class="mt-4 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold">Buat Order</button>
+    <button id="doOrder" data-i18n="btn_order" class="btn btn-primary btn-block mt-4">Buat Order</button>
     <div id="orderMsg" class="text-xs mt-2 text-amber-300"></div>
   </div>
 </dialog>
 
 <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
-<script src="/js/i18n.js?v=23"></script>
-  <script src="/js/common.js?v=13"></script>
-  <script src="/js/landing.js?v=6"></script>
+<script src="/js/i18n.js?v=24"></script>
+<script src="/js/common.js?v=14"></script>
+<script src="/js/landing.js?v=7"></script>
 </body>
 </html>
