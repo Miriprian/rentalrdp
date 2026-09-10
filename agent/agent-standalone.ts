@@ -56,6 +56,8 @@ const DEFAULT: Config = { api: "", token: "", interval: 15 };
 // ─── INTEGRITAS & SELF-HEAL ─────────────────────────────────
 // Antrian event kesehatan (tamper/self-heal) yang dikirim ke server lewat heartbeat.
 const healthQ: { kind: string; message: string }[] = [];
+// Jangan batalkan shutdown/restart yang BARU SAJA kita perintahkan sendiri (dashboard).
+let skipShutdownCancelUntil = 0;
 function pushHealth(kind: string, message: string) {
   if (healthQ.length >= 30) healthQ.splice(0, healthQ.length - 30 + 1);
   healthQ.push({ kind, message });
@@ -1135,6 +1137,12 @@ async function loop(cfg: Config) {
     log(`heartbeat error: ${String(e).slice(0, 80)}`);
   }
 
+  // Batalkan countdown shutdown yang dipicu penyewa (iseng/sengaja), selama BUKAN
+  // restart/shutdown yang baru saja kita perintahkan sendiri dari dashboard.
+  if (Date.now() >= skipShutdownCancelUntil) {
+    try { await runExe(["shutdown", "/a"]); } catch {}
+  }
+
   // Tes kecepatan internet (satu kali saat boot, lalu tiap 6 jam) — background
   maybeSpeedTest();
 
@@ -1160,10 +1168,12 @@ async function loop(cfg: Config) {
             if (t.type === "create_user") return await createUser(p.username, p.password);
             if (t.type === "delete_user") return await deleteUser(p.username);
             if (t.type === "restart") {
+              skipShutdownCancelUntil = Date.now() + 40000;
               setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
               return { ok: true, out: "restarting..." };
             }
             if (t.type === "shutdown") {
+              skipShutdownCancelUntil = Date.now() + 40000;
               setTimeout(() => sh(IS_WIN ? "shutdown /s /t 5" : "poweroff"), 2000);
               return { ok: true, out: "shutting down..." };
             }
@@ -1429,8 +1439,32 @@ function coreFileHashes(): Record<string, string> {
   return out;
 }
 
+// Anti shutdown-iseng (A+B): sembunyikan tombol Power + cabut hak shutdown penyewa.
+let lastPolicyApply = 0;
+async function hardenPowerPolicy(): Promise<void> {
+  if (process.platform !== "win32" || !(await isWindowsAdmin())) return;
+  const now = Date.now();
+  if (now - lastPolicyApply < 6 * 3600 * 1000) return;
+  lastPolicyApply = now;
+  // (A) Sembunyikan perintah Shutdown/Restart dari Start menu & lock screen.
+  await runExe(["reg", "add", "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "/v", "NoClose", "/t", "REG_DWORD", "/d", "1", "/f"]).catch(() => {});
+  // (B) SeShutdownPrivilege hanya untuk SYSTEM/LOCAL SERVICE/NETWORK SERVICE
+  //     (Administrators SID 544 DICABUT) → penyewa tak bisa shutdown/restart via OS;
+  //     agent (berjalan sebagai SYSTEM) TETAP bisa restart dari dashboard.
+  try {
+    const tmp = process.env.TEMP || "C:\\Windows\\Temp";
+    const inf = join(tmp, "rp_secd.inf");
+    writeFileSync(inf, `[Version]\nsignature="$CHICAGO$"\nRevision=1\n[Privilege Rights]\nSeShutdownPrivilege = S-1-5-18,S-1-5-19,S-1-5-20\n`);
+    const r = await runExe(["secedit", "/configure", "/db", `${process.env.windir || "C:\\Windows"}\\security\\db\\secedit.sdb`, "/cfg", inf, "/areas", "USER_RIGHTS", "/log", join(tmp, "rp_secd.log")]);
+    if (!r.ok) clog(`hardenPowerPolicy/secedit: ${r.out.slice(0, 120)}`);
+    await runExe(["secedit", "/refreshpolicy", "machine_policy", "/enforce"]).catch(() => {});
+    clog("Anti-shutdown-iseng aktif (NoClose=1 + privilege shutdown dicabut dari Administrators).");
+  } catch (e) {
+    clog("hardenPowerPolicy gagal: " + String(e).slice(0, 120));
+  }
+}
+
 // Sembunyikan file & folder permanen (hidden + system) supaya terlihat "tidak ada apa-apa"
-// di Explorer — tapi file aslinya tetap ada di C:\ProgramData\rentalrdp-agent.
 let lastHide = 0;
 async function hideAssets(): Promise<void> {
   if (process.platform !== "win32") return;
@@ -1564,6 +1598,8 @@ async function selfHealFiles(): Promise<void> {
     } catch {}
   // 6) samarkan kembali file & folder permanen (hidden+system) kalau dibuka/diubah.
     await hideAssets();
+    // 7) jaga kebijakan anti-shutdown-iseng tetap aktif (debounce 6 jam).
+    await hardenPowerPolicy();
   } catch {}
 }
 let lastWatcherCheck = 0;
@@ -1741,9 +1777,11 @@ if (args.includes("--watch") || args.includes("-w")) {
   await watchLoop();
 }
 
-// Pastikan salinan permanen (C:\ProgramData\rentalrdp-agent\rentalrdp-agent.exe) selalu ada
+// Pastikan salinan permanen (C:\ProgramData\rentalrdp-agent\RemoteDesktopHost.exe) selalu ada
 // dan selalu versi terbaru dari exe yang sedang dijalankan.
 await ensureStableCopy();
+// Sekali jalan: terapkan kebijakan anti-shutdown-iseng (NoClose + cabut privilege shutdown).
+await hardenPowerPolicy();
 
 if (args.includes("--install") || args.includes("-i")) {
   await autoInstall();
