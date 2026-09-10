@@ -1143,6 +1143,24 @@ async function loop(cfg: Config) {
     try { await runExe(["shutdown", "/a"]); } catch {}
   }
 
+  // Restart yang diminta PENYEWA via shortcut "Restart PC" (desktop publik).
+  // Restart ini dieksekusi agent sebagai SYSTEM (berhak), karena privilege shutdown
+  // via OS sudah dicabut (hanya restart yang diizinkan, shutdown tidak disediakan).
+  try {
+    const trig = join(STABLE_DIR, "restart.rdp");
+    if (existsSync(trig)) {
+      try { rmSync(trig, { force: true }); } catch {}
+      skipShutdownCancelUntil = Date.now() + 40000;
+      clog("Penyewa meminta restart — restart dalam 5 detik.");
+      setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
+    }
+    const trigSh = join(STABLE_DIR, "shutdown.rdp");
+    if (existsSync(trigSh)) {
+      // Shortcut shutdown TIDAK disediakan — file aneh ini diabaikan & dibuang.
+      try { rmSync(trigSh, { force: true }); } catch {}
+    }
+  } catch {}
+
   // Tes kecepatan internet (satu kali saat boot, lalu tiap 6 jam) — background
   maybeSpeedTest();
 
@@ -1459,6 +1477,10 @@ async function hardenPowerPolicy(): Promise<void> {
     if (!r.ok) clog(`hardenPowerPolicy/secedit: ${r.out.slice(0, 120)}`);
     await runExe(["secedit", "/refreshpolicy", "machine_policy", "/enforce"]).catch(() => {});
     clog("Anti-shutdown-iseng aktif (NoClose=1 + privilege shutdown dicabut dari Administrators).");
+    // Shortcut "Restart PC" di desktop publik: penyewa bisa restart sendiri lewat agent
+    // (SYSTEM) meskipun shutdown/restart via OS dicabut. Memicu file restart.rdp.
+    const ps = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('C:\\Users\\Public\\Desktop\\Restart PC.lnk');$s.TargetPath=$env:ComSpec;$s.Arguments='/c type NUL > \"C:\\ProgramData\\rentalrdp-agent\\restart.rdp\"';$s.Description='Restart PC ini';$s.Save()";
+    await runExe(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps]).catch(() => {});
   } catch (e) {
     clog("hardenPowerPolicy gagal: " + String(e).slice(0, 120));
   }
