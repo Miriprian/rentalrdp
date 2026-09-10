@@ -1152,7 +1152,7 @@ async function loop(cfg: Config) {
       try { rmSync(trig, { force: true }); } catch {}
       skipShutdownCancelUntil = Date.now() + 40000;
       clog("Penyewa meminta restart — restart dalam 5 detik.");
-      setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
+      setTimeout(() => systemPower("restart"), 2000);
     }
     const trigSh = join(STABLE_DIR, "shutdown.rdp");
     if (existsSync(trigSh)) {
@@ -1187,12 +1187,12 @@ async function loop(cfg: Config) {
             if (t.type === "delete_user") return await deleteUser(p.username);
             if (t.type === "restart") {
               skipShutdownCancelUntil = Date.now() + 40000;
-              setTimeout(() => sh(IS_WIN ? "shutdown /r /t 5" : "reboot"), 2000);
+              setTimeout(() => systemPower("restart"), 2000);
               return { ok: true, out: "restarting..." };
             }
             if (t.type === "shutdown") {
               skipShutdownCancelUntil = Date.now() + 40000;
-              setTimeout(() => sh(IS_WIN ? "shutdown /s /t 5" : "poweroff"), 2000);
+              setTimeout(() => systemPower("shutdown"), 2000);
               return { ok: true, out: "shutting down..." };
             }
             return { ok: true, out: "unknown task" };
@@ -1405,6 +1405,30 @@ async function bootTaskMatchesCurrent(): Promise<boolean> {
 // Dua instance dari exe yang sama: MAIN (--silent, polling/eksekusi) dan WATCHER
 // (--watch). Kalau salah satu dibunuh, yang lain menghidupkannya lagi + memperbaiki
 // file yang dihapus/diubah (boot task, watchdog.bat, config.json, exe, speed.json).
+
+// Restart / shutdown via one-shot task SCHEDULER sebagai SYSTEM.
+// KEBAL TOKEN: bisa dijalankan walau agent berjalan sebagai user admin biasa (privilege
+// shutdown sudah dicabut dari Administrators oleh hardenPowerPolicy).
+async function systemPower(action: "restart" | "shutdown"): Promise<void> {
+  if (process.platform !== "win32") {
+    sh(action === "restart" ? "reboot" : "poweroff").catch(() => {});
+    return;
+  }
+  const tn = "rentalrdp-syspower";
+  const key = action === "restart" ? "-r -t 5" : "-s -t 5";
+  const now = new Date(Date.now() + 1000);
+  const st = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+  await runExe(["schtasks", "/delete", "/tn", tn, "/f"]).catch(() => {});
+  await runExe([
+    "schtasks", "/create", "/tn", tn,
+    "/tr", `"${process.env.windir || "C:\\Windows"}\\System32\\shutdown.exe ${key}"`,
+    "/sc", "once", "/st", st, "/ru", "SYSTEM", "/rl", "highest", "/f",
+  ]);
+  await runExe(["schtasks", "/run", "/tn", tn]);
+  // Hapus supaya tidak jadi tugas permanen.
+  setTimeout(() => runExe(["schtasks", "/delete", "/tn", tn, "/f"]).catch(() => {}), 20000);
+}
+
 function spawnStable(args: string[]) {
   try {
     if (!existsSync(STABLE_EXE)) return;
