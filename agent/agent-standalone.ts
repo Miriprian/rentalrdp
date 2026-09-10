@@ -1169,10 +1169,9 @@ async function runExe(argsLocal: string[]): Promise<{ ok: boolean; out: string }
 // Cek apakah instance agent lain sudah berjalan (hindari proses ganda).
 async function anotherInstanceRunning(): Promise<boolean> {
   try {
-    const base = (process.execPath || "rentalrdp-agent").split(/[\\/]/).pop()!.replace(/\.exe$/i, "");
-    const r = await sh(`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Process -Name '${base}' -ErrorAction SilentlyContinue | Measure-Object).Count"`);
+    const r = await sh(`powershell -NoProfile -ExecutionPolicy Bypass -Command "$me=$PID; (Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match 'rentalrdp-agent') -or ($_.CommandLine -match 'rentalrdp-agent')) -and $_.ProcessId -ne $me -and ($_.CommandLine -match '--silent' -or $_.CommandLine -match '--watch') } | Measure-Object).Count"`);
     const n = parseInt((r.out.match(/\d+/) || ["0"])[0], 10);
-    return n > 1;
+    return n > 0;
   } catch {
     return false;
   }
@@ -1239,7 +1238,7 @@ async function createWindowsAutoStart(): Promise<{ bootOk: boolean; watchOk: boo
 
   // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
   try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+    writeFileSync(WATCH, watchdogBatContent, "utf8");
   } catch {}
 
   const tr = `"${exePath}" --silent`;
@@ -1332,7 +1331,9 @@ function spawnStable(args: string[]) {
   } catch {}
 }
 
-// Hitung proses rentalrdp-agent.exe yang command line-nya cocok persis argumen.
+// Hitung proses agent yang command line-nya berisi penanda argumen (--silent / --watch).
+// Deteksi via CommandLine (bukan Name) supaya tahan terhadap penamaan image exe yang
+// berbeda (mis. tampil sebagai "bun" di Task Manager).
 async function processCount(needle: string): Promise<number> {
   try {
     const r = await runExe([
@@ -1341,7 +1342,7 @@ async function processCount(needle: string): Promise<number> {
       "-ExecutionPolicy",
       "Bypass",
       "-Command",
-      `(Get-CimInstance Win32_Process -Filter "Name='rentalrdp-agent.exe'" | Where-Object { $_.CommandLine -match '${needle}' } | Measure-Object).Count`,
+      `(Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match 'rentalrdp-agent') -or ($_.CommandLine -match 'rentalrdp-agent')) -and $_.CommandLine -match '${needle}' } | Measure-Object).Count`,
     ]);
     return parseInt((r.out.match(/\d+/) || ["0"])[0], 10) || 0;
   } catch {
@@ -1349,7 +1350,7 @@ async function processCount(needle: string): Promise<number> {
   }
 }
 
-const watchdogBatContent = `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`;
+const watchdogBatContent = `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "$a = Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and ($_.CommandLine -match 'rentalrdp-agent') -and ($_.CommandLine -match '--silent') }; if (-not $a) { Start-Process -FilePath '%~dp0rentalrdp-agent.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`;
 
 // Hash file inti (dengan cache TTL supaya exe 40MB tidak di-hash tiap 15 detik).
 const hashTc: Record<string, { at: number; h: string }> = {};
@@ -1537,7 +1538,7 @@ async function syncAutoStartPath() {
   if (!cfg.autostart) return;
   const WATCH = join(STABLE_DIR, "rentalrdp-agent-watchdog.bat");
   try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+    writeFileSync(WATCH, watchdogBatContent, "utf8");
   } catch {}
   const hasBoot = await schtasksHas("rentalrdp-agent");
   if (hasBoot) {
