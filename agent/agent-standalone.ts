@@ -12,7 +12,7 @@
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { connect } from "node:net";
 import { hostname, networkInterfaces } from "node:os";
@@ -26,9 +26,23 @@ const VERSION = (typeof METADATA_VERSION !== "undefined" && METADATA_VERSION) ||
 const REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Miriprian/rentalrdp/main/agent/AGENT_VERSION";
 
 const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
-const CONFIG_FILE = existsSync(join(EXE_DIR, "config.json"))
-  ? join(EXE_DIR, "config.json")
-  : join(process.cwd(), "config.json");
+// Lokasi PERMANEN agent (Windows): path & nama TIDAK pernah berubah (rentalrdp-agent.exe).
+// Boot task, watchdog & HKCU Run selalu menunjuk ke sini — auto-start tidak akan pernah
+// terputus gara-gara exe versi lama dihapus / exe dipindah / update rename.
+const STABLE_DIR = join(process.env.PROGRAMDATA || "C:\\ProgramData", "rentalrdp-agent");
+const STABLE_EXE = join(STABLE_DIR, "rentalrdp-agent.exe");
+const STABLE_BASE = "rentalrdp-agent";
+const isStableSelf = () =>
+  process.platform === "win32" &&
+  String(process.execPath || "").replace(/\\/g, "/").toLowerCase() === STABLE_EXE.replace(/\\/g, "/").toLowerCase();
+// Config: kalau sudah ada di lokasi permanen, itu yang dipakai (kanonik).
+// Kalau belum → pakai/lihat di samping exe yang sedang dijalankan.
+const CONFIG_FILE =
+  process.platform === "win32" && existsSync(join(STABLE_DIR, "config.json"))
+    ? join(STABLE_DIR, "config.json")
+    : existsSync(join(EXE_DIR, "config.json"))
+      ? join(EXE_DIR, "config.json")
+      : join(process.cwd(), "config.json");
 // Nama file & "process image name" mengikuti nama exe (mis. rentalrdp-agent-v1.exe).
 const AGENT_EXE_NAME = (process.execPath || "rentalrdp-agent").split(/[\\/]/).pop()!;
 const PROC_BASE = AGENT_EXE_NAME.replace(/\.exe$/i, "");
@@ -212,6 +226,8 @@ async function referencedAgentRefs(): Promise<string[]> {
   } catch {}
   const wd = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
   try { if (existsSync(wd)) refs.push(readFileSync(wd, "utf8").toLowerCase()); } catch {}
+  const wdStable = join(STABLE_DIR, "rentalrdp-agent-watchdog.bat");
+  try { if (existsSync(wdStable)) refs.push(readFileSync(wdStable, "utf8").toLowerCase()); } catch {}
   return refs;
 }
 
@@ -1053,13 +1069,40 @@ async function schtasksHas(name: string): Promise<boolean> {
   return (await runExe(["schtasks", "/query", "/tn", name])).ok;
 }
 
+// Salin exe yang sedang berjalan ke lokasi permanen (Windows). Dipanggil di awal agar:
+//  - boot task / watchdog / HKCU Run selalu menunjuk path yang stabil & sudah ada,
+//  - versi terbaru tidak pernah ketinggalan walau hanya dijalankan manual dari folder lain.
+async function ensureStableCopy() {
+  if (process.platform !== "win32" || isStableSelf()) return;
+  try {
+    mkdirSync(STABLE_DIR, { recursive: true });
+    const curCfg = existsSync(CONFIG_FILE) ? readFileSync(CONFIG_FILE, "utf8").trim() : "";
+    if (curCfg) {
+      try { writeFileSync(join(STABLE_DIR, "config.json"), curCfg, "utf8"); } catch {}
+    }
+    for (let i = 0; i < 10; i++) {
+      try {
+        copyFileSync(process.execPath, STABLE_EXE);
+        break;
+      } catch {
+        // File memang dilock oleh instance stabil yang sedang jalan → matikan, lalu ulangi.
+        await runExe(["taskkill", "/f", "/im", "rentalrdp-agent.exe"]);
+        Bun.sleepSync(500);
+      }
+    }
+    if (!existsSync(STABLE_EXE)) log("⚠️ Gagal menyalin agent ke lokasi permanen.");
+  } catch (e) {
+    log("ensureStableCopy gagal: " + String(e).slice(0, 150));
+  }
+}
+
 // Tulis ulang mechanisme: buat task BOOT + Watchdog (SYSTEM) langsung kalau admin,
 // atau sekali lewat UAC (pop-up) kalau bukan admin — lalu POLLING sampai task benar-benar
 // muncul (dulu cukup 2,5dtk sehingga gampang false-negative). Kalau sama sekali gagal,
 // fallback ke auto-start saat login (HKCU\...\Run) agar agent tetap ikut start.
 async function createWindowsAutoStart(): Promise<{ bootOk: boolean; watchOk: boolean; mode: "system" | "user" | "none" }> {
-  const exePath = process.execPath;
-  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
+  const exePath = STABLE_EXE;
+  const WATCH = join(STABLE_DIR, "rentalrdp-agent-watchdog.bat");
   const TASK_BOOT = "rentalrdp-agent";
   const TASK_WATCH = "rentalrdp-agent-watchdog";
 
@@ -1070,7 +1113,7 @@ async function createWindowsAutoStart(): Promise<{ bootOk: boolean; watchOk: boo
 
   // 2) Watchdog.bat — restart agent kalau mati (proteksi anti di-stop penyewa).
   try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
   } catch {}
 
   const tr = `"${exePath}" --silent`;
@@ -1139,13 +1182,13 @@ function hideConsole() {
   } catch {}
 }
 
-// Cek apakah task BOOT menunjuk exe yang sama dengan lokasi agent sekarang
-// (kalau tidak, task lama menunjuk path lama → perlu dibuat ulang saat migrasi folder).
+// Cek apakah task BOOT menunjuk lokasi PERMANEN agent (kalau tidak, task lama menunjuk
+// path lama → perlu dibuat ulang supaya auto-start tidak putus setelah update/migrasi).
 async function bootTaskMatchesCurrent(): Promise<boolean> {
   try {
     const xml = (await runExe(["schtasks", "/query", "/tn", "rentalrdp-agent", "/xml"])).out;
     if (!xml.trim()) return false; // task tidak ada
-    return xml.toLowerCase().includes((process.execPath || "").toLowerCase());
+    return xml.toLowerCase().includes(STABLE_EXE.replace(/\\/g, "/").toLowerCase());
   } catch {
     return false;
   }
@@ -1192,21 +1235,20 @@ async function syncAutoStartPath() {
   if (!IS_WIN) return;
   const cfg = loadConfig();
   if (!cfg.autostart) return;
-  const WATCH = join(EXE_DIR, "rentalrdp-agent-watchdog.bat");
-  // watchdog.bat menunjuk nama exe runtime — bisa berubah saat update rename file.
+  const WATCH = join(STABLE_DIR, "rentalrdp-agent-watchdog.bat");
   try {
-    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${PROC_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${AGENT_EXE_NAME}' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
+    writeFileSync(WATCH, `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`, "utf8");
   } catch {}
   const hasBoot = await schtasksHas("rentalrdp-agent");
   if (hasBoot) {
     if (await bootTaskMatchesCurrent()) return;
-    // Task lama menunjuk exe lama → perbarui ke exe sekarang (kalau bukan admin, skip diam-diam;
-    // watchdog tetap pakai nama baru sehingga recovery tetap jalan).
-    await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", `"${process.execPath}" --silent`, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+    // Task lama menunjuk exe lama → perbarui ke lokasi permanen (kalau bukan admin, skip
+    // diam-diam; watchdog tetap pakai lokasi permanen sehingga recovery tetap jalan).
+    await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", `"${STABLE_EXE}" --silent`, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
     await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent-watchdog", "/tr", `"${WATCH}"`, "/sc", "minute", "/mo", "1", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
   } else {
-    // Fallback login (non-admin): perbarui HKCU Run ke exe sekarang.
-    await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/d", `"${process.execPath}" --silent`, "/f"]);
+    // Fallback login (non-admin): perbarui HKCU Run ke lokasi permanen.
+    await runExe(["reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "rentalrdp-agent", "/d", `"${STABLE_EXE}" --silent`, "/f"]);
   }
 }
 
@@ -1281,6 +1323,10 @@ if (args.includes("--version") || args.includes("-v")) {
   process.exit(0);
 }
 
+// Pastikan salinan permanen (C:\ProgramData\rentalrdp-agent\rentalrdp-agent.exe) selalu ada
+// dan selalu versi terbaru dari exe yang sedang dijalankan.
+await ensureStableCopy();
+
 if (args.includes("--install") || args.includes("-i")) {
   await autoInstall();
   process.exit(0);
@@ -1306,6 +1352,19 @@ if (SILENT) {
 if (!cfg.api || !cfg.token) {
   console.log("\n  Config belum diisi. Jalankan exe → menu → 1 (Install / Ganti Token).\n");
   process.exit(1);
+}
+
+// Windows + exe yang dijalankan bukan dari lokasi permanen → pindahkan sesi ini ke
+// lokasi permanen (spawn --silent lalu keluar). Hasilnya: hanya SATU instance yang polling,
+// dan boot task/watchdog selalu menunjuk file yang hidup.
+if (process.platform === "win32" && !isStableSelf() && existsSync(STABLE_EXE)) {
+  console.log(`\n  Menyalin agent ke lokasi permanen (${STABLE_EXE}) dan menjalankannya di background...\n`);
+  try {
+    Bun.spawn([STABLE_EXE, "--silent"], { stdout: "inherit", stderr: "inherit", windowsHide: true });
+  } catch (e) {
+    log("Gagal pindah ke lokasi permanen: " + String(e).slice(0, 120));
+  }
+  process.exit(0);
 }
 
 console.log(`
