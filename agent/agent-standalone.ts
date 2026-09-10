@@ -1227,6 +1227,16 @@ async function ensureStableCopy() {
       saveConfig({ ...c, origin_dir: EXE_DIR } as Config);
       writeFileSync(join(STABLE_DIR, "config.json"), JSON.stringify({ ...c, origin_dir: EXE_DIR }, null, 2), "utf8");
     } catch {}
+    // Instance lama (nama lama ATAU nama samaran) dimatikan dulu + file lama dihapus.
+    // Dengan nama permanen yang BERUBAH (v24 → RemoteDesktopHost.exe), salinan baru tidak
+    // kena lock nama lama, sehingga tanpa langkah ini instance lama akan terus hidup,
+    // menimpa boot task/runkey dengan path lamanya, dan "membatalkan" migrasi.
+    await runExe(["taskkill", "/f", "/im", "rentalrdp-agent.exe"]);
+    await runExe(["taskkill", "/f", "/im", `${STABLE_BASE}.exe`]);
+    Bun.sleepSync(800);
+    try {
+      if (STABLE_BASE !== "rentalrdp-agent") rmSync(join(STABLE_DIR, "rentalrdp-agent.exe"), { force: true });
+    } catch {}
     for (let i = 0; i < 10; i++) {
       try {
         copyFileSync(process.execPath, STABLE_EXE);
@@ -1237,6 +1247,10 @@ async function ensureStableCopy() {
         Bun.sleepSync(500);
       }
     }
+    // Watchdog.bat isi baru segera ditulis — spool migrasi tidak bergantung pada loop.
+    try {
+      writeFileSync(join(STABLE_DIR, "rentalrdp-agent-watchdog.bat"), watchdogBatContent, "utf8");
+    } catch {}
     if (!existsSync(STABLE_EXE)) clog("⚠️ Gagal menyalin agent ke lokasi permanen.");
   } catch (e) {
     clog("ensureStableCopy gagal: " + String(e).slice(0, 150));
