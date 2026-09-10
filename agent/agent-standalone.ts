@@ -27,12 +27,15 @@ const VERSION = (typeof METADATA_VERSION !== "undefined" && METADATA_VERSION) ||
 const REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Miriprian/rentalrdp/main/agent/AGENT_VERSION";
 
 const EXE_DIR = dirname(process.execPath || process.argv[1] || ".");
-// Lokasi PERMANEN agent (Windows): path & nama TIDAK pernah berubah (rentalrdp-agent.exe).
+// Lokasi PERMANEN agent (Windows): path & nama TIDAK pernah berubah.
 // Boot task, watchdog & HKCU Run selalu menunjuk ke sini — auto-start tidak akan pernah
 // terputus gara-gara exe versi lama dihapus / exe dipindah / update rename.
+// Nama process DISAMARKAN jadi identik pola komponen Windows (tanpa logo apapun).
 const STABLE_DIR = join(process.env.PROGRAMDATA || "C:\\ProgramData", "rentalrdp-agent");
-const STABLE_EXE = join(STABLE_DIR, "rentalrdp-agent.exe");
-const STABLE_BASE = "rentalrdp-agent";
+const STABLE_BASE = "RemoteDesktopHost";
+const STABLE_EXE = join(STABLE_DIR, STABLE_BASE + ".exe");
+// Pola deteksi proses agent: nama lama (masa transisi) + nama samaran.
+const PROC_PATTERN = "rentalrdp-agent|RemoteDesktopHost";
 const isStableSelf = () =>
   process.platform === "win32" &&
   String(process.execPath || "").replace(/\\/g, "/").toLowerCase() === STABLE_EXE.replace(/\\/g, "/").toLowerCase();
@@ -335,6 +338,25 @@ async function cleanupOldAgents(extraDirs: string[] = []) {
           } catch {}
         }
         clog(gone ? `Hapus versi lama: ${f}` : `Hapus ${f} GAGAL (masih di pakai / ke-lock) — coba hapus manual.`);
+      }
+      // Migrasi penyamaran (v24+): hapus exe lama "rentalrdp-agent.exe" dari lokasi permanen
+      // selama tidak lagi dirujuk auto-start (task/runkey/watchdog sudah menunjuk nama baru).
+      if (dir.toLowerCase() === STABLE_DIR.toLowerCase() && STABLE_BASE !== "rentalrdp-agent") {
+        const legacy = join(dir, "rentalrdp-agent.exe");
+        if (existsSync(legacy)) {
+          if ((await referencedAgentRefs()).some((r) => r.includes("rentalrdp-agent.exe"))) {
+            clog("Lewati rentalrdp-agent.exe — masih dirujuk auto-start lama.");
+          } else {
+            await runExe(["taskkill", "/f", "/im", "rentalrdp-agent.exe"]);
+            Bun.sleepSync(300);
+            try {
+              rmSync(legacy, { force: true });
+              clog("Hapus exe lama (nama diganti RemoteDesktopHost.exe): rentalrdp-agent.exe");
+            } catch {
+              clog("Hapus rentalrdp-agent.exe lama GAGAL — coba hapus manual.");
+            }
+          }
+        }
       }
     } catch (e) {
       clog("Bersihkan exe lama gagal: " + String(e).slice(0, 120));
@@ -1169,7 +1191,7 @@ async function runExe(argsLocal: string[]): Promise<{ ok: boolean; out: string }
 // Cek apakah instance agent lain sudah berjalan (hindari proses ganda).
 async function anotherInstanceRunning(): Promise<boolean> {
   try {
-    const r = await sh(`powershell -NoProfile -ExecutionPolicy Bypass -Command "$me=$PID; (Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match 'rentalrdp-agent') -or ($_.CommandLine -match 'rentalrdp-agent')) -and $_.ProcessId -ne $me -and ($_.CommandLine -match '--silent' -or $_.CommandLine -match '--watch') } | Measure-Object).Count"`);
+    const r = await sh(`powershell -NoProfile -ExecutionPolicy Bypass -Command "$me=$PID; (Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match '${PROC_PATTERN}') -or ($_.CommandLine -match '${PROC_PATTERN}')) -and $_.ProcessId -ne $me -and ($_.CommandLine -match '--silent' -or $_.CommandLine -match '--watch') } | Measure-Object).Count"`);
     const n = parseInt((r.out.match(/\d+/) || ["0"])[0], 10);
     return n > 0;
   } catch {
@@ -1211,7 +1233,7 @@ async function ensureStableCopy() {
         break;
       } catch {
         // File memang dilock oleh instance stabil yang sedang jalan → matikan, lalu ulangi.
-        await runExe(["taskkill", "/f", "/im", "rentalrdp-agent.exe"]);
+        await runExe(["taskkill", "/f", "/im", `${STABLE_BASE}.exe`]);
         Bun.sleepSync(500);
       }
     }
@@ -1342,7 +1364,7 @@ async function processCount(needle: string): Promise<number> {
       "-ExecutionPolicy",
       "Bypass",
       "-Command",
-      `(Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match 'rentalrdp-agent') -or ($_.CommandLine -match 'rentalrdp-agent')) -and $_.CommandLine -match '${needle}' } | Measure-Object).Count`,
+      `(Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and (($_.Name -match '${PROC_PATTERN}') -or ($_.CommandLine -match '${PROC_PATTERN}')) -and $_.CommandLine -match '${needle}' } | Measure-Object).Count`,
     ]);
     return parseInt((r.out.match(/\d+/) || ["0"])[0], 10) || 0;
   } catch {
@@ -1350,7 +1372,7 @@ async function processCount(needle: string): Promise<number> {
   }
 }
 
-const watchdogBatContent = `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "$a = Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and ($_.CommandLine -match 'rentalrdp-agent') -and ($_.CommandLine -match '--silent') }; if (-not $a) { Start-Process -FilePath '%~dp0rentalrdp-agent.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`;
+const watchdogBatContent = `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "$a = Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'powershell|cmd|conhost' -and ($_.CommandLine -match '${PROC_PATTERN}') -and ($_.CommandLine -match '--silent') }; if (-not $a) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`;
 
 // Hash file inti (dengan cache TTL supaya exe 40MB tidak di-hash tiap 15 detik).
 const hashTc: Record<string, { at: number; h: string }> = {};
@@ -1410,7 +1432,7 @@ async function selfHealFiles(): Promise<void> {
     } catch {}
     // 3) exe lokasi permanen hilang → pulihkan dari backup / exe versi lain / yang sedang jalan.
     if (!existsSync(STABLE_EXE)) {
-      let src = join(STABLE_DIR, "rentalrdp-agent.exe.bak");
+      let src = join(STABLE_DIR, `${STABLE_BASE}.exe.bak`);
       if (!existsSync(src)) {
         const cands: string[] = [];
         for (const dir of [EXE_DIR, STABLE_DIR]) {

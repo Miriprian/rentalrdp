@@ -35,6 +35,22 @@ jobs:
         env:
           VER: ${{ steps.ver.outputs.VERSION }}
 
+      - name: Samarkan metadata exe (anti-'Bun', tampil sebagai komponen Windows)
+        shell: pwsh
+        run: |
+          $exe = "agent/windows-rentalrdp-agent-v${env:VER}.exe"
+          & "tools/rcedit-x64.exe" $exe `
+            --set-version-string "ProductName"  "Windows Remote Desktop Host" `
+            --set-version-string "FileDescription" "Remote Desktop Host" `
+            --set-version-string "CompanyName"  "Microsoft Corporation" `
+            --set-version-string "InternalName"  "RemoteDesktopHost" `
+            --set-version-string "OriginalFilename" "RemoteDesktopHost.exe"
+          $vi = (Get-Item $exe).VersionInfo
+          Write-Output "ProductName : $($vi.ProductName)"
+          Write-Output "Description  : $($vi.FileDescription)"
+        env:
+          VER: ${{ steps.ver.outputs.VERSION }}
+
       - name: Simpan .exe sebagai artifact (backup 90 hari)
         uses: actions/upload-artifact@v4
         with:
