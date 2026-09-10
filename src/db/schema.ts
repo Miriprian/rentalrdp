@@ -180,6 +180,14 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const agentEvents = pgTable("agent_events", {
+  id: text("id").primaryKey(),
+  pcId: text("pc_id").notNull(),
+  kind: text("kind").notNull().default("info"), // tamper|warning|info
+  message: text("message").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Pc = typeof pcs.$inferSelect;
 export type Order = typeof orders.$inferSelect;

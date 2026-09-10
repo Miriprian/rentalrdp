@@ -47,7 +47,13 @@ export const pcRoutes = new Elysia()
   .get("/api/pcs", async ({ request, set }) => {
     const me = await currentUser(request);
     if (!me || !isAdmin(me.role)) return denied(set);
-    const rows = await all(`SELECT * FROM pcs ORDER BY code ASC`);
+    // Sertakan pesan tamper terakhir dari agent (agent_events) untuk badge di dashboard.
+    const rows = await all(
+      `SELECT p.*,
+              (SELECT e.message FROM agent_events e WHERE e.pc_id=p.id AND e.kind='tamper' ORDER BY e.created_at DESC LIMIT 1) AS last_tamper_msg,
+              (SELECT e.created_at FROM agent_events e WHERE e.pc_id=p.id AND e.kind='tamper' ORDER BY e.created_at DESC LIMIT 1) AS last_tamper_at
+       FROM pcs p ORDER BY p.code ASC`
+    );
     // jangan bocorkan hash token penuh ke admin biasa? superadmin boleh lihat last4
     return { ok: true, data: rows };
   })

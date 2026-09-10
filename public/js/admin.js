@@ -80,8 +80,10 @@ async function adminPcsHtml() {
       <div class="card rounded-xl p-4 text-sm">
         <div class="flex gap-2 items-center flex-wrap"><b class="mono">${esc(p.code)}</b> ${statusBadge(p.status)}
           ${!p.last_seen_at ? `<span class="text-[11px] px-2 py-1 rounded-full bg-slate-700 font-bold">${t("waiting_agent")}</span>` : (p.is_active ? `<span class="text-[11px] px-2 py-1 rounded-full bg-emerald-700 font-bold">${t("published")}</span>` : `<span class="text-[11px] px-2 py-1 rounded-full bg-amber-700 font-bold">${t("not_published")}</span>`)}
+          ${p.last_tamper_msg ? `<span class="text-[11px] px-2 py-1 rounded-full bg-red-900 text-red-300 font-bold" title="${esc(String(p.last_tamper_msg || ""))}">${t("tamper_badge")}</span>` : ""}
           <span class="ml-auto text-xs">${esc(p.ip_public || "-")} • ${t("last_seen")}${p.last_seen_at ? new Date(p.last_seen_at).toLocaleString("id-ID") : "-"}</span>
         </div>
+        ${p.last_tamper_msg ? `<div class="mt-1 text-xs text-red-300">${t("tamper_note")} ${esc(String(p.last_tamper_msg).slice(0, 140))}</div>` : ""}
         ${p.cpu ? `<div class="mt-1">${specHtml(p)}</div>` : `<div class="mt-1 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}
         <div class="flex flex-wrap gap-2 mt-3 text-xs">
           <select id="st-${p.id}" class="px-3 py-2 rounded-lg bg-slate-800"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>

@@ -73,7 +73,25 @@ export const agentRoutes = new Elysia()
         sets.push(`net_tested_at=$${params.length + 1}`);
       }
     }
+    // Hash file inti agent (config/watchdog/exe/speed) — dikirim untuk deteksi tamper.
+    if (b.filesHashes && typeof b.filesHashes === "object") {
+      params.push(JSON.stringify(b.filesHashes).slice(0, 4000));
+      sets.push(`agent_files_hash=$${params.length + 1}`);
+    }
     await q(`UPDATE pcs SET ${sets.join(", ")} WHERE id=$1`, [pc.id, ...params]);
+    // Event kesehatan agent (tamper/self-heal) → riwayat untuk ditampilkan di dashboard.
+    if (Array.isArray(b.events)) {
+      for (const ev of b.events) {
+        if (ev && typeof ev.message === "string") {
+          await q(`INSERT INTO agent_events (id, pc_id, kind, message, created_at) VALUES ($1,$2,$3,$4,NOW())`, [
+            crypto.randomUUID(),
+            pc.id,
+            String(ev.kind || "info").slice(0, 30),
+            ev.message.slice(0, 500),
+          ]);
+        }
+      }
+    }
     return {
       ok: true,
       serverTime: new Date().toISOString(),

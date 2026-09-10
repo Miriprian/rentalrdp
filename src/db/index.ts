@@ -182,6 +182,14 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS agent_events (
+  id TEXT PRIMARY KEY,
+  pc_id TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'info',
+  message TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_events_pc ON agent_events(pc_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_rentals_user ON rentals(user_id);
@@ -208,6 +216,7 @@ ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_download_mbps REAL NOT NULL DEFAULT
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_upload_mbps REAL NOT NULL DEFAULT 0;
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_ping_ms REAL NOT NULL DEFAULT 0;
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS net_tested_at TIMESTAMPTZ;
+ALTER TABLE pcs ADD COLUMN IF NOT EXISTS agent_files_hash TEXT NOT NULL DEFAULT '';
 
 -- Migrasi timezone: TIMESTAMP (naif) -> TIMESTAMPTZ (ber-offset UTC)
 -- Nilai lama ditafsirkan sebagai UTC agar tampilan nanti di-localize ke jam pengguna.

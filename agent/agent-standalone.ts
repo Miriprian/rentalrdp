@@ -12,7 +12,8 @@
  *   - Auto-install sebagai startup (Windows) / systemd (Linux)
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, rmSync, readdirSync, copyFileSync, statSync } from "node:fs";
+import { createHash, createHmac } from "node:crypto";
 import { join, dirname, basename } from "node:path";
 import { connect } from "node:net";
 import { hostname, networkInterfaces } from "node:os";
@@ -49,6 +50,56 @@ const PROC_BASE = AGENT_EXE_NAME.replace(/\.exe$/i, "");
 type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string; origin_dir?: string };
 const DEFAULT: Config = { api: "", token: "", interval: 15 };
 
+// ─── INTEGRITAS & SELF-HEAL ─────────────────────────────────
+// Antrian event kesehatan (tamper/self-heal) yang dikirim ke server lewat heartbeat.
+const healthQ: { kind: string; message: string }[] = [];
+function pushHealth(kind: string, message: string) {
+  if (healthQ.length >= 30) healthQ.splice(0, healthQ.length - 30 + 1);
+  healthQ.push({ kind, message });
+}
+function drainHealth() {
+  return healthQ.splice(0, healthQ.length);
+}
+// Identitas mesin stabil (MAC + hostname) — kunci HMAC tidak bisa direplikasi hanya
+// dengan meng-copy file. Dipakai buat menandatangani speed.json & file kritikal.
+function machineId(): string {
+  try {
+    let mac = "";
+    for (const ifs of Object.values(networkInterfaces())) {
+      for (const i of ifs || []) {
+        if (!i.internal && i.mac && i.mac !== "00:00:00:00:00:00") { mac = i.mac; break; }
+      }
+      if (mac) break;
+    }
+    return createHash("sha256").update(hostname() + "::" + mac).digest("hex").slice(0, 32);
+  } catch {
+    return createHash("sha256").update(hostname()).digest("hex").slice(0, 32);
+  }
+}
+// Anchor rahasia + token dari config → key HMAC per mesin.
+function hmacKey(): string {
+  const c = loadConfig();
+  return createHmac("sha256", "rentalrdp::v1::anchor").update(machineId() + "|" + (c.token || "")).digest("hex");
+}
+function hmacSign(obj: unknown): string {
+  return createHmac("sha256", hmacKey()).update(JSON.stringify(obj)).digest("hex");
+}
+function hmacVerify(obj: unknown, sig: string): boolean {
+  try {
+    return createHmac("sha256", hmacKey()).update(JSON.stringify(obj)).digest("hex") === sig;
+  } catch {
+    return false;
+  }
+}
+function sha256File(p: string): string {
+  try {
+    const b = readFileSync(p);
+    return createHash("sha256").update(b).digest("hex");
+  } catch {
+    return "";
+  }
+}
+
 function loadConfig(): Config {
   try {
     if (existsSync(CONFIG_FILE)) {
@@ -60,6 +111,15 @@ function loadConfig(): Config {
 
 function saveConfig(c: Config) {
   writeFileSync(CONFIG_FILE, JSON.stringify(c, null, 2));
+  // Snapshot "config terakhir yang sah" — dipakai self-heal untuk memulihkan kalau
+  // config.json diubah/dihapus penyewa/hacker.
+  try {
+    const snap = join(dirname(CONFIG_FILE), ".cfg.last");
+    writeFileSync(snap, JSON.stringify(c, null, 2));
+    if (process.platform === "win32" && STABLE_DIR !== dirname(CONFIG_FILE)) {
+      writeFileSync(join(STABLE_DIR, ".cfg.last"), JSON.stringify(c, null, 2));
+    }
+  } catch {}
 }
 
 function setConfigFlag(key: keyof Config, val: boolean) {
@@ -802,8 +862,17 @@ let detectedSpecs: Record<string, unknown> | null = null;
 // Murni JS (fetch + node:net), tanpa dependency native → aman di-bundle jadi .exe.
 // Alur: ambil daftar server Ookla (engine=js) → pilih yang terjangkau → ukur
 // ping (TCP RTT), download (file uji Ookla), upload (POST ke upload.php).
-type NetResult = { downloadMbps: number; uploadMbps: number; pingMs: number; testedAt: string };
-const NET_CACHE = existsSync(join(EXE_DIR, "speed.json")) ? join(EXE_DIR, "speed.json") : join(process.cwd(), "speed.json");
+type NetResult = { downloadMbps: number; uploadMbps: number; pingMs: number; testedAt: string; sig?: string };
+// speed.json hidup di lokasi permanen (dan di folder yang sedang aktif). Kalau yang di
+// lokasi permanen ada, itu yang dipakai — biar diubah di folder lain tidak berpengaruh.
+const NET_CACHE =
+  process.platform === "win32" && existsSync(join(STABLE_DIR, "speed.json"))
+    ? join(STABLE_DIR, "speed.json")
+    : existsSync(join(EXE_DIR, "speed.json"))
+      ? join(EXE_DIR, "speed.json")
+      : process.platform === "win32"
+        ? join(STABLE_DIR, "speed.json")
+        : join(process.cwd(), "speed.json");
 // Tes ulang otomatis tiap 12 jam + jitter acak (±30 menit) per unit, supaya kalau
 // PC sudah banyak speedtest tidak jalan bareng-bareng (tidak membebani server/server Ookla).
 const SPEED_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -811,19 +880,30 @@ const SPEED_JITTER_MS = Math.floor(Math.random() * 30 * 60 * 1000);
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0";
 let netState: NetResult | null = loadNetState();
 let netBusy = false;
+let forceSpeedTest = false;
 
 function loadNetState(): NetResult | null {
   try {
     if (existsSync(NET_CACHE)) {
-      const j = JSON.parse(readFileSync(NET_CACHE, "utf8"));
-      if (j && typeof j.downloadMbps === "number") return j as NetResult;
+      const j = JSON.parse(readFileSync(NET_CACHE, "utf8") || "{}") as Record<string, unknown>;
+      const { sig, ...rest } = j;
+      if (rest && typeof rest.downloadMbps === "number") {
+        // Tanpa/editan tanda tangan HMAC = diutak-atik → abaikan, ukur ulang, dan lapor.
+        if (typeof sig === "string" && hmacVerify(rest, sig)) return rest as NetResult;
+        pushHealth("tamper", "speed.json diedit/dipalsukan — hasil lama diabaikan, diukur ulang.");
+        forceSpeedTest = true;
+        return null;
+      }
     }
   } catch {}
   return null;
 }
 
 function saveNetState(r: NetResult) {
-  try { writeFileSync(NET_CACHE, JSON.stringify(r)); } catch {}
+  const { sig: _sig, ...rest } = r;
+  try {
+    writeFileSync(NET_CACHE, JSON.stringify({ ...rest, sig: hmacSign(rest) }));
+  } catch {}
 }
 
 function netBodyNet(): Record<string, unknown> {
@@ -960,6 +1040,11 @@ async function runSpeedTest() {
 
 function maybeSpeedTest() {
   if (netBusy) return;
+  if (forceSpeedTest) {
+    forceSpeedTest = false;
+    void runSpeedTest();
+    return;
+  }
   if (netState && Date.now() - new Date(netState.testedAt).getTime() < SPEED_INTERVAL_MS + SPEED_JITTER_MS) return;
   void runSpeedTest();
 }
@@ -976,9 +1061,17 @@ async function heartbeat(cfg: Config) {
     }
     detectedSpecs = { ...s, hw, hostname: HOSTNAME, platform: process.platform };
   }
+  // Hash file inti + event kesehatan dikirim tiap heartbeat untuk deteksi tamper server-side.
+  const fh = coreFileHashes();
+  const ev = drainHealth();
   const r = await apiCall(cfg, "/api/agent/heartbeat", {
     method: "POST",
-    body: JSON.stringify({ ...detectedSpecs, ...netBodyNet() }),
+    body: JSON.stringify({
+      ...detectedSpecs,
+      ...netBodyNet(),
+      ...(Object.keys(fh).length ? { filesHashes: fh } : {}),
+      ...(ev.length ? { events: ev } : {}),
+    }),
   });
   if (first) {
     const hw = (detectedSpecs.hw || {}) as Record<string, unknown>;
@@ -990,6 +1083,11 @@ async function heartbeat(cfg: Config) {
 }
 
 async function loop(cfg: Config) {
+  // Proteksi dual-process: pastikan WATCHER (/--watch) hidup.
+  await ensureWatcher();
+  // Self-heal file inti (config/exe/watchdog/boot task) + snapshot.
+  await selfHealFiles();
+
   // Heartbeat
   try {
     await heartbeat(cfg);
@@ -1222,6 +1320,180 @@ async function bootTaskMatchesCurrent(): Promise<boolean> {
   }
 }
 
+// ─── PROTEKSI DUAL-PROCESS & SELF-HEAL ──────────────────────
+// Dua instance dari exe yang sama: MAIN (--silent, polling/eksekusi) dan WATCHER
+// (--watch). Kalau salah satu dibunuh, yang lain menghidupkannya lagi + memperbaiki
+// file yang dihapus/diubah (boot task, watchdog.bat, config.json, exe, speed.json).
+function spawnStable(args: string[]) {
+  try {
+    if (!existsSync(STABLE_EXE)) return;
+    const sp = Bun.spawn([STABLE_EXE, ...args], { stdout: "ignore", stderr: "ignore", windowsHide: true, cwd: STABLE_DIR });
+    sp.unref?.();
+  } catch {}
+}
+
+// Hitung proses rentalrdp-agent.exe yang command line-nya cocok persis argumen.
+async function processCount(needle: string): Promise<number> {
+  try {
+    const r = await runExe([
+      "powershell",
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      `(Get-CimInstance Win32_Process -Filter "Name='rentalrdp-agent.exe'" | Where-Object { $_.CommandLine -match '${needle}' } | Measure-Object).Count`,
+    ]);
+    return parseInt((r.out.match(/\d+/) || ["0"])[0], 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+const watchdogBatContent = `@echo off\r\nsetlocal\r\npowershell -NoProfile -ExecutionPolicy Bypass -Command "if (-not (Get-Process -Name '${STABLE_BASE}' -ErrorAction SilentlyContinue)) { Start-Process -FilePath '%~dp0${STABLE_BASE}.exe' -ArgumentList '--silent' -WindowStyle Hidden }"\r\n`;
+
+// Hash file inti (dengan cache TTL supaya exe 40MB tidak di-hash tiap 15 detik).
+const hashTc: Record<string, { at: number; h: string }> = {};
+function fileHashCached(p: string, ttlMs = 600000): string {
+  if (!existsSync(p)) return "";
+  const now = Date.now();
+  const c = hashTc[p];
+  if (c && now - c.at < ttlMs) return c.h;
+  const h = sha256File(p);
+  hashTc[p] = { at: now, h };
+  return h;
+}
+function coreFileHashes(): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    out.config = fileHashCached(join(STABLE_DIR, "config.json"), 30000);
+    out.watchdog = fileHashCached(join(STABLE_DIR, "rentalrdp-agent-watchdog.bat"), 30000);
+    out.speed = fileHashCached(NET_CACHE, 30000);
+    out.exe = fileHashCached(STABLE_EXE, 600000);
+    out.bak = fileHashCached(STABLE_EXE + ".bak", 600000);
+  } catch {}
+  return out;
+}
+
+// Perbaiki file inti agent yang hilang/diubah (dipanggil MAIN tiap loop & WATCHER tiap poll).
+let lastTaskHeal = 0;
+async function selfHealFiles(): Promise<void> {
+  if (process.platform !== "win32") return;
+  try {
+    // 1) config.json: kalau hilang/rusak/diubah → pulihkan dari snapshot ".cfg.last".
+    const cfgPath = CONFIG_FILE;
+    const snapPath = join(dirname(cfgPath), ".cfg.last");
+    let snapObj: Config | null = null;
+    try { snapObj = JSON.parse(readFileSync(snapPath, "utf8")) as Config; } catch {}
+    if (snapObj && snapObj.api && snapObj.token) {
+      let cur: Config | null = null;
+      try { cur = JSON.parse(readFileSync(cfgPath, "utf8") || "{}") as Config; } catch {}
+      const missing = !existsSync(cfgPath);
+      const bad = !cur || !cur.api || !cur.token;
+      if (missing || bad) {
+        pushHealth("tamper", "config.json hilang/rusak — dipulihkan dari snapshot.");
+        try { writeFileSync(cfgPath, JSON.stringify(snapObj, null, 2)); } catch {}
+      } else if (cur.api !== snapObj.api || cur.token !== snapObj.token) {
+        pushHealth("tamper", "config.json diubah — dikembalikan ke config resmi.");
+        try { writeFileSync(cfgPath, JSON.stringify(snapObj, null, 2)); } catch {}
+      }
+    } else if (!existsSync(snapPath) && loadConfig().api && loadConfig().token) {
+      try { writeFileSync(snapPath, readFileSync(cfgPath, "utf8")); } catch {}
+    }
+    // 2) watchdog.bat di lokasi permanen — selalu ada (isi baku).
+    try {
+      const wd = join(STABLE_DIR, "rentalrdp-agent-watchdog.bat");
+      if (!existsSync(wd) || readFileSync(wd, "utf8").trim() !== watchdogBatContent.trim()) {
+        writeFileSync(wd, watchdogBatContent, "utf8");
+        pushHealth("warning", "watchdog.bat diubah/hilang — dibuat ulang.");
+      }
+    } catch {}
+    // 3) exe lokasi permanen hilang → pulihkan dari backup / exe versi lain / yang sedang jalan.
+    if (!existsSync(STABLE_EXE)) {
+      let src = join(STABLE_DIR, "rentalrdp-agent.exe.bak");
+      if (!existsSync(src)) {
+        const cands: string[] = [];
+        for (const dir of [EXE_DIR, STABLE_DIR]) {
+          try {
+            for (const f of readdirSync(dir)) {
+              if (/^windows-rentalrdp-agent-v\d+.*\.exe$/i.test(f)) cands.push(join(dir, f));
+            }
+          } catch {}
+        }
+        cands.sort((a, b) => b.localeCompare(a));
+        if (cands.length) src = cands[0]!;
+        else if (process.execPath) src = process.execPath;
+      }
+      if (src.toLowerCase() !== STABLE_EXE.toLowerCase() && existsSync(src)) {
+        try {
+          copyFileSync(src, STABLE_EXE);
+          pushHealth("tamper", "exe agent dihapus — dipulihkan otomatis.");
+        } catch {}
+      }
+    }
+    // 4) backup exe mengikuti versi (pegangan kalau exe utama dihapus).
+    try {
+      if (existsSync(STABLE_EXE)) {
+        const bak = STABLE_EXE + ".bak";
+        const a = statSync(bak).size;
+        const b = statSync(STABLE_EXE).size;
+        if (!existsSync(bak) || a !== b) copyFileSync(STABLE_EXE, bak);
+      }
+    } catch {}
+    // 5) boot task & HKCU mengarah ke lokasi permanen (kalau autostart aktif & kita admin).
+    try {
+      const c = loadConfig();
+      if (c.autostart && Date.now() - lastTaskHeal > 60000) {
+        lastTaskHeal = Date.now();
+        if (!(await schtasksHas("rentalrdp-agent")) || !(await bootTaskMatchesCurrent())) {
+          await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent", "/tr", `"${STABLE_EXE}" --silent`, "/sc", "onstart", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+          await runExe(["schtasks", "/create", "/tn", "rentalrdp-agent-watchdog", "/tr", `"${join(STABLE_DIR, "rentalrdp-agent-watchdog.bat")}"`, "/sc", "minute", "/mo", "1", "/ru", "SYSTEM", "/rl", "highest", "/f"]);
+          pushHealth("warning", "auto-start (boot task) diubah/hilang — dibuat ulang.");
+        }
+      }
+    } catch {}
+  } catch {}
+}
+
+// MAIN memastikan WATCHER hidup (tiap beberapa loop); WATCHER memastikan MAIN hidup.
+let lastWatcherCheck = 0;
+async function ensureWatcher(): Promise<void> {
+  const now = Date.now();
+  if (now - lastWatcherCheck < 60000) return;
+  lastWatcherCheck = now;
+  if (process.platform !== "win32" || !existsSync(STABLE_EXE) || isSelfWatcher()) return;
+  try {
+    const n = await processCount("--watch");
+    if (n === 0) {
+      clog("watcher mati → hidupkan lagi (dual-process).");
+      spawnStable(["--watch"]);
+    }
+  } catch {}
+}
+function isSelfWatcher(): boolean {
+  return process.argv.includes("--watch");
+}
+
+// WATCHER: loop kesehatan mandiri — tidak polling task, tidak bikin akun.
+async function watchLoop(): Promise<never> {
+  let tick = 0;
+  for (;;) {
+    try {
+      await selfHealFiles();
+      // Pastikan MAIN (--silent) hidup.
+      if ((await processCount("--silent")) === 0) {
+        clog("main agent mati → start ulang dari watcher.");
+        spawnStable(["--silent"]);
+      }
+      if (++tick % 2 === 0) {
+        await selfHealFiles();
+        const c = loadConfig();
+        if (c.autostart) await syncAutoStartPath();
+      }
+    } catch {}
+    await Bun.sleep(15000);
+  }
+}
+
 async function autoInstall() {
   if (IS_WIN) {
     // Sudah terpasang dengan task BOOT → jangan pasang ulang (hindari pop-up UAC tiap boot).
@@ -1350,6 +1622,12 @@ try { rmSync(process.execPath + ".new", { force: true }); } catch {}
 if (args.includes("--version") || args.includes("-v")) {
   console.log(`${AGENT_EXE_NAME} v${VERSION}`);
   process.exit(0);
+}
+
+// Mode WATCHER (dual-process protection): loop kesehatan mandiri, tidak polling task.
+if (args.includes("--watch") || args.includes("-w")) {
+  if (SILENT) hideConsole();
+  await watchLoop();
 }
 
 // Pastikan salinan permanen (C:\ProgramData\rentalrdp-agent\rentalrdp-agent.exe) selalu ada
