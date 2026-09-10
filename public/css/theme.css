@@ -129,6 +129,12 @@ select.input { cursor: pointer; }
 .chip-amber { background: var(--c-amber3); color: #201800; }
 .chip-slate { background: var(--c-muted-bg); color: var(--c-text); }
 .chip-outline { border: 1px solid var(--c-border-2); background: transparent; color: var(--c-text-sub); }
+/* Status "diproses": chip bernapas halus */
+.chip.pulse { animation: chip-breathe 1.8s ease-in-out infinite; }
+@keyframes chip-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+/* Sorot singkat saat data berubah (dipakai kartu admin live) */
+.fresh { animation: fresh-pulse 1.2s ease-out; }
+@keyframes fresh-pulse { 0% { background-color: rgba(16, 185, 129, .12); } 100% { background-color: transparent; } }
 
 /* Tab pills */
 .tabs { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .25rem; scrollbar-width: thin; }
@@ -156,6 +162,9 @@ select.input { cursor: pointer; }
   background: linear-gradient(90deg, var(--c-em4), transparent); }
 .stat .k { font-size: .6875rem; color: var(--c-text-muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .stat .v { font-size: 1.45rem; font-weight: 800; margin-top: .15rem; line-height: 1.15; }
+
+/* Label mini (pengganti emoji untuk pemisah info pada kartu) */
+.lab { font-size: .6875rem; color: var(--c-text-muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 
 /* Indikator online agent */
 .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 9999px; vertical-align: middle; }

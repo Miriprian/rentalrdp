@@ -1,8 +1,18 @@
-/* Rental PC by Miriprian — panel admin (/admin) : order, PC, rental, user, voucher, settings, audit */
+/* Rental PC by Miriprian — panel admin (/admin): order, PC, rental, user, voucher, settings, audit */
 let tab = "orders";
 
+/* ── status chip (tanpa emoji, palet minimal) ─────────────────────────── */
 const adminOrderStatusChip = (s) => {
-  const m = { pending: ["amber", t("order_pending")], waiting_verification: ["amber", t("order_waiting")], approved: ["emerald", t("order_approved")], rejected: ["red", t("order_rejected")], completed: ["slate", t("order_completed")], cancelled: ["slate", t("order_cancelled")] };
+  const m = {
+    pending: ["amber", t("order_pending")],
+    waiting_verification: ["amber", t("order_waiting")],
+    paid: ["emerald", t("order_paid")],
+    active: ["emerald", t("order_active")],
+    rejected: ["red", t("order_rejected")],
+    expired: ["slate", t("order_expired")],
+    completed: ["slate", t("order_completed")],
+    cancelled: ["slate", t("order_cancelled")],
+  };
   const [v, label] = m[s] || ["slate", s || "—"];
   return chip(label, v);
 };
@@ -11,13 +21,67 @@ const adminRentalStatusChip = (s) => {
   const [v, label] = m[s] || ["slate", s || "—"];
   return chip(label, v);
 };
+const lab = (s) => `<span class="lab">${esc(s)}</span>`;
+const pulseChip = (text, variant) => chip(text, variant).replace('class="chip', 'class="chip pulse');
 
+/* ── mesin live (auto-refresh per tab, tanpa refresh manual) ───────────── */
+const LIVE = { orders: 5000, pcs: 10000, rentals: 5000, rentacc: 2000 };
+const live = { running: true, timer: null, keys: {} };
+const sig = (v) => JSON.stringify(v);
+let accByPc = new Map();
+
+function refreshAccMap(arr) {
+  accByPc = new Map();
+  for (const a of arr || []) {
+    const k = a.pc_id || a.pc_code || "";
+    if (!k) continue;
+    const cur = accByPc.get(k);
+    if (!cur || new Date(a.created_at) > new Date(cur.created_at)) accByPc.set(k, a);
+  }
+}
+
+function paintLive() {
+  const el = $("#liveInd");
+  if (!el) return;
+  const on = live.running;
+  el.innerHTML = `<span class="dot ${on ? "dot-on" : "dot-off"}"></span><span class="font-mono text-[11px] font-bold tracking-widest">${on ? t("lbl_live") : t("lbl_paused")}</span>`;
+  el.title = on ? t("tt_live_on") : t("tt_live_off");
+}
+window.toggleLive = function () {
+  live.running = !live.running;
+  if (live.running) schedule();
+  else clearTimeout(live.timer);
+  paintLive();
+};
+function schedule() {
+  clearTimeout(live.timer);
+  if (!live.running) return;
+  const iv = LIVE[tab];
+  if (!iv) return;
+  live.timer = setTimeout(liveTick, iv);
+}
+async function liveTick() {
+  try {
+    if (tab === "orders") await liveOrders();
+    else if (tab === "pcs") await livePcs();
+    else if (tab === "rentals") await liveRentals();
+    else if (tab === "rentacc") await liveRentAcc();
+  } catch (_) {}
+  schedule();
+}
+
+/* ── navigasi ─────────────────────────────────────────────────────────── */
 function renderTabs() {
   const tabs = [["orders", t("tab_incoming")], ["pcs", t("tab_pcs")], ["rentals", t("tab_active_rentals")], ["rentacc", t("tab_rent_acc")], ["users", t("tab_users")], ["vouchers", t("tab_vouchers")], ["settings", t("tab_settings")], ["audit", t("tab_audit")], ["akun", t("tab_akun")]];
   if (!tabs.find((t) => t[0] === tab)) tab = "orders";
   $("#dashTabs").innerHTML = tabs.map(([k, l]) => `<button onclick="setTab('${k}')" class="tab ${tab === k ? "tab-on" : ""}">${l}</button>`).join("");
 }
-window.setTab = function (k) { tab = k; renderTabs(); renderBody(); };
+window.setTab = function (k) {
+  tab = k;
+  renderTabs();
+  renderBody();
+  schedule();
+};
 
 async function renderBody() {
   const b = $("#dashBody");
@@ -35,113 +99,148 @@ async function renderBody() {
   } catch (e) { b.innerHTML = `<div class="text-red-300 text-sm">${t("load_fail")}${esc(e.message)}</div>`; }
 }
 
-async function adminOrdersHtml() {
-  const s = await api("/api/admin/stats");
-  const r = await api("/api/admin/orders");
-  const rows = r.data || [];
-  const st = s.data || {};
+/* ── tab ORDERS ───────────────────────────────────────────────────────── */
+function statCardsHtml(st) {
   const stats = [
-    ["Users", st.users ?? 0, "text-slate-200"],
-    ["PC", st.pcs ?? 0, "text-slate-200"],
+    ["Users", st.users ?? 0],
+    ["PC", st.pcs ?? 0],
     ["Pending", st.pendingOrders ?? 0],
     ["Aktif", st.activeRentals ?? 0],
     ["Revenue", rupiah(st.revenue ?? 0)],
-  ].map(([k, v, c]) => `<div class="stat"><div class="k">${k}</div><div class="v ${c || ""}">${v}</div></div>`).join("");
-  return `
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">${stats}</div>
-    <div class="grid gap-4">` + (rows.length ? rows.map((o) => `
-      <div class="card card-hover rounded-2xl p-5 text-sm">
-        <div class="flex flex-wrap gap-2 items-center">
-          <b class="mono text-emerald-300">${esc(o.code)}</b>
-          ${adminOrderStatusChip(o.status)}
-          <span class="ml-auto font-extrabold text-lg text-emerald-300">${rupiah(o.total_idr)}</span>
-        </div>
-        <div class="text-slate-300 mt-2 text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
-          <div>👤 ${esc(o.username)} <span class="text-slate-500">(${esc(o.wa_number || "-")})</span></div>
-          <div>🖥️ <span class="mono">${esc(o.pc_code)}</span> • ${esc(o.plan_code)} • ${o.duration_hours}j • ${t("via")} ${esc(o.payment_method)}</div>
-          ${o.created_at ? `<div>📅 ${new Date(o.created_at).toLocaleString("id-ID")}</div>` : ""}
-        </div>
-        ${o.payment_proof ? `<div class="text-xs mt-1.5">🧾 ${t("proof_label")}<b class="mono text-emerald-300">${esc(o.payment_proof)}</b></div>` : `<div class="text-xs text-slate-500 mt-1.5">🧾 ${t("no_proof")}</div>`}
-        ${o.note ? `<div class="text-xs text-slate-400 mt-1">📝 ${esc(o.note)}</div>` : ""}
-        ${["pending", "waiting_verification"].includes(o.status) ? `
-          <div class="flex flex-wrap gap-2 mt-4">
-            <button onclick="approveOrder('${o.id}')" class="btn btn-primary btn-sm">${t("btn_approve")}</button>
-            <button onclick="rejectOrder('${o.id}')" class="btn btn-danger btn-sm">${t("btn_reject")}</button>
-          </div>` : ""}
-      </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_orders_admin")}</div>`) + `</div>`;
+  ].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  return `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" id="statGrid">${stats}</div>`;
 }
-window.approveOrder = async function (id) {
-  if (!confirm(t("confirm_approve"))) return;
-  const r = await api(`/api/admin/orders/${id}/approve`, { method: "POST" });
-  toast(r.message || "OK");
-  if (r.ok && r.rdpPass) alert(`${t("rdp_created")}${r.rdpUser}${t("rdp_created_2")}${r.rdpPass}${t("rdp_created_3")}`);
-  renderBody();
-};
-window.rejectOrder = async function (id) {
-  if (!confirm(t("confirm_reject"))) return;
-  const r = await api(`/api/admin/orders/${id}/reject`, { method: "POST" });
-  toast(r.message || "OK"); renderBody();
-};
-
-let agentSetupHtml = "";
-
-// Strip telemetri agent (live): status online + last seen + kecepatan internet + tamper.
-function agentLiveHtml(p) {
-  const on = agentOnline(p);
-  const parts = [];
-  parts.push(`<span class="inline-flex items-center gap-1.5">${agentDotHtml(p)}</span>`);
-  parts.push(`<span class="text-xs text-slate-400">${t("last_seen")}${ago(p.last_seen_at)}</span>`);
-  const dl = Number(p.net_download_mbps || 0), ul = Number(p.net_upload_mbps || 0), ping = Number(p.net_ping_ms || 0);
-  if (dl || ul) {
-    parts.push(chip(t("lbl_net") + " " + t("net_speed", { down: Math.round(dl), up: Math.round(ul) }), on ? "emerald" : "slate"));
-    if (ping) parts.push(chip(t("net_ping", { ping }), "slate"));
-  }
-  if (p.last_tamper_msg) parts.push(chip(t("tamper_badge"), "red"));
-  return `<div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-800">${parts.join("")}</div>`;
+function ordersListHtml(rows) {
+  const inner = rows.length ? rows.map((o) => `
+    <div class="card card-hover rounded-2xl p-5 text-sm">
+      <div class="flex flex-wrap gap-2 items-center">
+        <b class="mono text-slate-200">${esc(o.code)}</b>
+        ${adminOrderStatusChip(o.status)}
+        <span class="ml-auto font-extrabold text-lg text-slate-200">${rupiah(o.total_idr)}</span>
+      </div>
+      <div class="text-slate-300 mt-2.5 text-xs grid sm:grid-cols-2 gap-x-4 gap-y-1">
+        <div>${lab(t("lbl_tenant"))} ${esc(o.username)} <span class="text-slate-500">(${esc(o.wa_number || "-")})</span></div>
+        <div>${lab("PC")} <span class="mono">${esc(o.pc_code)}</span> • ${esc(o.plan_code)} • ${o.duration_hours}${t("hours")} • ${t("via")}${esc(o.payment_method)}</div>
+        ${o.created_at ? `<div class="sm:col-span-2">${lab(t("lbl_created"))} ${new Date(o.created_at).toLocaleString("id-ID")}</div>` : ""}
+      </div>
+      <div class="text-xs mt-2">${lab(t("proof_label"))} ${o.payment_proof ? `<b class="mono text-slate-200">${esc(o.payment_proof)}</b>` : `<span class="text-slate-500">${t("no_proof")}</span>`}</div>
+      ${o.note ? `<div class="text-xs text-slate-400 mt-1">${lab(t("lbl_note"))} ${esc(o.note)}</div>` : ""}
+      ${["pending", "waiting_verification", "paid"].includes(o.status) ? `
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button onclick="approveOrder('${o.id}')" class="btn btn-primary btn-sm">${t("btn_approve")}</button>
+          <button onclick="rejectOrder('${o.id}')" class="btn btn-danger btn-sm">${t("btn_reject")}</button>
+        </div>` : ""}
+    </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_orders_admin")}</div>`;
+  return `<div class="grid gap-4" id="ordersList">${inner}</div>`;
 }
-
-async function adminPcsHtml() {
-  const r = await api("/api/pcs");
+function orderKey(o) { return o.id + ":" + o.status + ":" + (o.updated_at || o.created_at); }
+function ordersKeyOf(rows) { return sig(rows.map(orderKey)); }
+async function adminOrdersHtml() {
+  const [s, r] = await Promise.all([api("/api/admin/stats"), api("/api/admin/orders")]);
   const rows = r.data || [];
+  live.keys.orders = ordersKeyOf(rows);
+  return statCardsHtml(s.data || {}) + ordersListHtml(rows);
+}
+async function liveOrders() {
+  const [s, r] = await Promise.all([api("/api/admin/stats"), api("/api/admin/orders")]);
+  const rows = r.data || [];
+  const g = $("#statGrid");
+  if (!g) return;
+  g.outerHTML = statCardsHtml(s.data || {});
+  const key = ordersKeyOf(rows);
+  if (key !== live.keys.orders) {
+    live.keys.orders = key;
+    const l = $("#ordersList");
+    if (l) l.outerHTML = ordersListHtml(rows);
+  }
+}
+
+/* ── tab PCS (telemetri agent live, input dibiarkan utuh) ─────────────── */
+function pcBadgesHtml(p) {
+  let h = statusBadge(p.status);
+  if (!p.last_seen_at) h += chip(t("waiting_agent"), "slate");
+  else h += (p.is_active ? chip(t("published"), "emerald") : chip(t("not_published"), "amber"));
+  return h;
+}
+function pcTaskHtml(p) {
+  const a = accByPc.get(p.id);
+  if (!a) return "";
+  if (a.task_status === "done") return "";
+  if (a.task_status === "failed")
+    return `<div class="mt-2 flex flex-wrap items-center gap-1.5">${chip(t("task_failed"), "red")}<span class="text-xs text-red-300">${esc(t("task_fail_hint"))}</span></div>`;
+  const st = a.task_status === "claimed" ? t("task_claimed") : t("task_pending");
+  const hint = agentOnline(p) ? t("task_pending_on") : t("task_pending_off");
+  return `<div class="mt-2 flex flex-wrap items-center gap-1.5">${pulseChip(st, a.task_status === "claimed" ? "amber" : "slate")}<span class="text-xs text-slate-400">${hint}</span></div>`;
+}
+let agentSetupHtml = "";
+function pcCardHtml(p) {
+  return `<div class="card card-hover rounded-2xl p-5 text-sm" data-pcid="${p.id}">
+    <div class="flex flex-wrap gap-2 items-center">
+      <b class="mono text-lg text-slate-200">${esc(p.code)}</b>
+      <span data-badges>${pcBadgesHtml(p)}</span>
+      <span class="ml-auto text-xs text-slate-400">${esc(p.ip_public || "-")}</span>
+    </div>
+    <div data-live>${agentLiveHtml(p)}</div>
+    <div data-task>${pcTaskHtml(p)}</div>
+    ${p.last_tamper_msg ? `<div class="mt-2 text-xs text-red-300">${t("tamper_note")} ${esc(String(p.last_tamper_msg).slice(0, 140))}</div>` : ""}
+    <div data-spek>${p.cpu ? specHtml(p) : `<div class="mt-3 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}</div>
+    <div class="flex flex-wrap gap-2 mt-4">
+      <select id="st-${p.id}" class="input !w-auto !py-2 text-xs"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>
+      <input id="ip-${p.id}" value="${esc(p.ip_public || "")}" placeholder="IP publik" class="input !w-36 !py-2 text-xs"/>
+      <input id="pd-${p.id}" type="number" value="${p.price_daily}" placeholder="${esc(t("ph_price_day"))}" title="${esc(t("tt_price_day"))}" class="input !w-28 !py-2 text-xs"/>
+      <input id="pm-${p.id}" type="number" value="${p.price_monthly}" placeholder="${esc(t("ph_price_month"))}" title="${esc(t("tt_price_month"))}" class="input !w-28 !py-2 text-xs"/>
+      <button onclick="savePc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_save")}</button>
+      ${p.last_seen_at && !p.is_active ? `<button onclick="publishPc('${p.id}')" class="btn btn-primary btn-sm">${t("btn_publish")}</button>` : ""}
+      ${p.is_active ? `<button onclick="unpublishPc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_unpublish")}</button>` : ""}
+      <button onclick="regenToken('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_token")}</button>
+      <button onclick="mkRentUser('${p.id}')" class="btn btn-primary btn-sm">${t("btn_mk_manual")}</button>
+      <button onclick="rmRentUser('${p.id}','${esc(p.code)}')" class="btn btn-danger btn-sm">${t("btn_rm_manual")}</button>
+      <button onclick="restartPc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_restart")}</button>
+      <button onclick="delPc('${p.id}')" class="btn btn-danger btn-sm">${t("btn_delete")}</button>
+    </div>
+    <div class="text-xs text-slate-500 mt-3 flex flex-wrap gap-x-3 gap-y-1">
+      <span>${t("price_day_1")}<b class="text-slate-200">${rupiah(p.price_hourly)}${t("price_suffix")}</b></span>
+      <span>${rupiah(p.price_daily)}/hari • ${rupiah(p.price_weekly)}/minggu • ${rupiah(p.price_monthly)}/bulan</span>
+    </div>
+  </div>`;
+}
+async function adminPcsHtml() {
+  const [pr, ar] = await Promise.all([api("/api/pcs"), api("/api/admin/rent-accounts")]);
+  const rows = pr.data || [];
+  refreshAccMap(ar.data);
   return `
     <div class="card rounded-2xl p-5 mb-5 text-sm flex flex-wrap items-center gap-3">
       <div class="flex-1 min-w-[220px]">
-        <b class="text-emerald-300">${t("add_pc")}</b>
+        <b class="text-slate-200">${t("add_pc")}</b>
         <div class="text-xs text-slate-400 mt-1">${t("pc_hint")}</div>
       </div>
       <button onclick="createPc()" class="btn btn-primary">${t("btn_add_pc")}</button>
     </div>
     <div id="agentSetup">${agentSetupHtml}</div>
-    <div class="grid gap-4">` + rows.map((p) => `
-      <div class="card card-hover rounded-2xl p-5 text-sm">
-        <div class="flex flex-wrap gap-2 items-center">
-          <b class="mono text-lg">${esc(p.code)}</b>
-          ${statusBadge(p.status)}
-          ${!p.last_seen_at ? chip(t("waiting_agent"), "slate") : (p.is_active ? chip(t("published"), "emerald") : chip(t("not_published"), "amber"))}
-          <span class="ml-auto text-xs text-slate-400 flex flex-wrap items-center gap-2">${esc(p.ip_public || "-")}</span>
-        </div>
-        ${agentLiveHtml(p)}
-        ${p.last_tamper_msg ? `<div class="mt-2 text-xs text-red-300">${t("tamper_note")} ${esc(String(p.last_tamper_msg).slice(0, 140))}</div>` : ""}
-        ${p.cpu ? `<div class="mt-3">${specHtml(p)}</div>` : `<div class="mt-3 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}
-        <div class="flex flex-wrap gap-2 mt-4">
-          <select id="st-${p.id}" class="input !w-auto !py-2 text-xs"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>
-          <input id="ip-${p.id}" value="${esc(p.ip_public || "")}" placeholder="IP publik" class="input !w-36 !py-2 text-xs"/>
-          <input id="pd-${p.id}" type="number" value="${p.price_daily}" placeholder="${esc(t("ph_price_day"))}" title="${esc(t("tt_price_day"))}" class="input !w-28 !py-2 text-xs"/>
-          <input id="pm-${p.id}" type="number" value="${p.price_monthly}" placeholder="${esc(t("ph_price_month"))}" title="${esc(t("tt_price_month"))}" class="input !w-28 !py-2 text-xs"/>
-          <button onclick="savePc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_save")}</button>
-          ${p.last_seen_at && !p.is_active ? `<button onclick="publishPc('${p.id}')" class="btn btn-primary btn-sm">${t("btn_publish")}</button>` : ""}
-          ${p.is_active ? `<button onclick="unpublishPc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_unpublish")}</button>` : ""}
-          <button onclick="regenToken('${p.id}')" class="btn btn-amber btn-sm">${t("btn_token")}</button>
-          <button onclick="mkRentUser('${p.id}')" class="btn btn-primary btn-sm !bg-emerald-800">${t("btn_mk_manual")}</button>
-          <button onclick="rmRentUser('${p.id}','${esc(p.code)}')" class="btn btn-danger btn-sm">${t("btn_rm_manual")}</button>
-          <button onclick="restartPc('${p.id}')" class="btn btn-amber btn-sm">${t("btn_restart")}</button>
-          <button onclick="delPc('${p.id}')" class="btn btn-danger btn-sm">${t("btn_delete")}</button>
-        </div>
-        <div class="text-xs text-slate-500 mt-3 flex flex-wrap gap-x-3 gap-y-1">
-          <span>${t("price_day_1")}<b class="text-emerald-300">${rupiah(p.price_hourly)}${t("price_suffix")}</b></span>
-          <span>${rupiah(p.price_daily)}/hari • ${rupiah(p.price_weekly)}/minggu • ${rupiah(p.price_monthly)}/bulan</span>
-        </div>
-      </div>`).join("") + `</div>`;
+    <div class="grid gap-4" id="pcList">${rows.map(pcCardHtml).join("")}</div>`;
+}
+async function livePcs() {
+  const [pr, ar] = await Promise.all([api("/api/pcs"), api("/api/admin/rent-accounts")]);
+  const rows = pr.data || [];
+  refreshAccMap(ar.data);
+  let needFull = false;
+  const seen = new Set();
+  for (const p of rows) {
+    seen.add(p.id);
+    const card = document.querySelector(`[data-pcid="${p.id}"]`);
+    if (!card) { needFull = true; break; }
+    const b = card.querySelector("[data-badges]");
+    const nh = pcBadgesHtml(p);
+    if (b && b.innerHTML !== nh) b.innerHTML = nh;
+    const lv = card.querySelector("[data-live]");
+    const nl = agentLiveHtml(p);
+    if (lv && lv.innerHTML !== nl) lv.innerHTML = nl;
+    const tk = card.querySelector("[data-task]");
+    const nt = pcTaskHtml(p);
+    if (tk && tk.innerHTML !== nt) tk.innerHTML = nt;
+  }
+  const count = document.querySelectorAll("[data-pcid]").length;
+  if (needFull || seen.size !== rows.length || count !== rows.length) await renderBody();
 }
 window.createPc = async function () {
   if (!confirm(t("confirm_create_pc"))) return;
@@ -198,21 +297,21 @@ window.showAgentSetup = async function (code, token) {
   agentSetupHtml = `
     <div class="card rounded-2xl p-5 mb-5 border border-emerald-500/40 text-sm">
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <b class="text-emerald-300">${t("setup_title", { code })}</b>
+        <b class="text-slate-200">${t("setup_title", { code })}</b>
         <button onclick="closeAgentSetup()" class="ml-auto btn btn-ghost btn-sm">${t("btn_close")}</button>
       </div>
       <div class="grid md:grid-cols-2 gap-5">
         <div class="space-y-2 text-xs text-slate-300">
           <div class="font-bold text-slate-200">${t("setup_1")}</div>
-          <a href="${dl.url}" download="${dl.name}" target="_blank" class="btn btn-primary btn-sm">⬇ ${dl.name}</a>
+          <a href="${dl.url}" download="${dl.name}" target="_blank" class="btn btn-primary btn-sm">${dl.name}</a>
           <div class="text-slate-400">${t("setup_1_list")}</div>
           <a href="/api/download/agent" class="text-slate-500 underline">${t("setup_1_alt")}</a>
           <div class="font-bold text-slate-200 pt-2">${t("setup_2")}</div>
-          <div>${t("setup_2_list")}<b class="text-emerald-300">${esc(server)}</b></div>
+          <div>${t("setup_2_list")}<b class="text-slate-200">${esc(server)}</b></div>
         </div>
         <div class="space-y-2 text-xs text-slate-300">
           <div class="font-bold text-slate-200">${t("setup_3")}</div>
-          <div class="mono bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 break-all text-emerald-300">${esc(token)}</div>
+          <div class="mono bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 break-all text-slate-200">${esc(token)}</div>
           <button onclick="copyAgentToken('${esc(token)}')" class="btn btn-ghost btn-sm">${t("btn_copy_token")}</button>
           <div class="text-slate-400 pt-1">${t("setup_3_list")}</div>
           <div class="text-slate-400 pt-1">${t("setup_3_list2")}</div>
@@ -233,8 +332,8 @@ window.mkRentUser = async function (id) {
   if (r.ok && r.username) {
     alert(`${t("mk_ok")}\n\nUser : ${r.username}\nPass : ${r.password}\n\n${t("mk_note")}\n${t("mk_saved")}`);
     toast(t("mk_sent"));
+    setTab("rentacc");
   } else toast(r.message || "Gagal");
-  renderBody();
 };
 window.rmRentUser = async function (id, code) {
   const u = prompt(`${t("rm_prompt")} (${code})`);
@@ -248,18 +347,35 @@ window.restartPc = async function (id) {
   toast(r.message || "OK"); renderBody();
 };
 
+/* ── tab RENTALS ──────────────────────────────────────────────────────── */
+function rentalsListHtml(rows) {
+  const inner = rows.length ? rows.map((x) => `
+    <div class="card card-hover rounded-2xl p-5 text-sm">
+      <div class="flex flex-wrap gap-2 items-center">
+        <b class="mono text-lg text-slate-200">${esc(x.pc_code)}</b>
+        ${adminRentalStatusChip(x.status)}
+        <span class="ml-auto text-xs text-slate-400">${lab(t("lbl_tenant"))} ${esc(x.username)} • ${lab(t("upto"))} <b class="text-slate-200">${new Date(x.end_at).toLocaleString("id-ID")}</b></span>
+      </div>
+      ${x.status === "active" ? `<div class="mt-4"><button onclick="terminateRental('${x.id}')" class="btn btn-danger btn-sm">${t("btn_terminate")}</button></div>` : ""}
+    </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_rental_admin")}</div>`;
+  return `<div class="grid gap-4" id="rentalsList">${inner}</div>`;
+}
+function rentalsKeyOf(rows) { return sig(rows.map((r) => r.id + ":" + r.status)); }
 async function adminRentalsHtml() {
   const r = await api("/api/admin/rentals");
   const rows = r.data || [];
-  return `<div class="grid gap-4">` + (rows.length ? rows.map((x) => `
-    <div class="card card-hover rounded-2xl p-5 text-sm">
-      <div class="flex flex-wrap gap-2 items-center">
-        <b class="mono text-lg">${esc(x.pc_code)}</b>
-        ${adminRentalStatusChip(x.status)}
-        <span class="ml-auto text-xs">👤 ${esc(x.username)} •${t("upto")} <b>${new Date(x.end_at).toLocaleString("id-ID")}</b></span>
-      </div>
-      ${x.status === "active" ? `<div class="mt-4"><button onclick="terminateRental('${x.id}')" class="btn btn-danger btn-sm">${t("btn_terminate")}</button></div>` : ""}
-    </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_rental_admin")}</div>`) + `</div>`;
+  live.keys.rentals = rentalsKeyOf(rows);
+  return rentalsListHtml(rows);
+}
+async function liveRentals() {
+  const r = await api("/api/admin/rentals");
+  const rows = r.data || [];
+  const key = rentalsKeyOf(rows);
+  if (key !== live.keys.rentals) {
+    live.keys.rentals = key;
+    const l = $("#rentalsList");
+    if (l) l.outerHTML = rentalsListHtml(rows);
+  }
 }
 window.terminateRental = async function (id) {
   if (!confirm(t("confirm_terminate"))) return;
@@ -267,10 +383,18 @@ window.terminateRental = async function (id) {
   toast(r.message || "OK"); renderBody();
 };
 
-async function adminRentAccHtml() {
-  const r = await api("/api/admin/rent-accounts");
-  const rows = r.data || [];
-  // Kelompokkan per PC: 1 akun aktif (kiri) + 1 akun nonaktif terakhir (kanan, dalam baris/kolom sama).
+/* ── tab AKUN RDP (live proses pembuatan akun) ───────────────────────── */
+function taskBadge(status, result, pcStatus) {
+  if (status === "done") return `<span class="inline-flex items-center gap-1.5">${chip(t("task_done"), "emerald")}</span>`;
+  if (status === "failed") {
+    const hint = String(result || "").includes("14 characters") ? t("task_fail_shortpass") : t("task_fail_hint");
+    return `<span class="inline-flex flex-wrap items-center gap-1.5">${chip(t("task_failed"), "red")}<span class="text-xs text-red-300">${esc(hint)}</span></span>`;
+  }
+  const off = pcStatus === "offline" || !pcStatus;
+  const st = status === "claimed" ? t("task_claimed") : t("task_pending");
+  return `<span class="inline-flex flex-wrap items-center gap-1.5">${pulseChip(st, status === "claimed" ? "amber" : "slate")}<span class="text-xs text-slate-400">${off ? t("task_pending_off") : t("task_pending_on")}</span></span>`;
+}
+function rentAccListHtml(rows) {
   const perPc = new Map();
   for (const a of rows) {
     const k = a.pc_id || a.pc_code || a.username;
@@ -280,13 +404,12 @@ async function adminRentAccHtml() {
     else if (a.status === "deleted" && (!g.deleted || new Date(a.created_at) > new Date(g.deleted.created_at))) g.deleted = a;
   }
   const groups = [...perPc.values()].filter((g) => g.active || g.deleted);
-  return `<div class="card rounded-2xl p-4 mb-4 text-sm">${t("rent_acc_hint")}</div>
-  <div class="grid gap-3">` + (groups.length ? groups.map((g) => {
+  const inner = groups.length ? groups.map((g) => {
     const a = g.active;
     let html = `<div class="card rounded-2xl p-5 text-sm flex flex-wrap gap-5">`;
     html += `<div class="flex-1 min-w-[260px]">`;
     if (a) {
-      html += `<div class="flex flex-wrap gap-2 items-center"><b class="mono text-emerald-300">${esc(a.username)}</b>
+      html += `<div class="flex flex-wrap gap-2 items-center"><b class="mono text-slate-200">${esc(a.username)}</b>
         ${chip(t("rental_active"), "emerald")}
         <span class="ml-auto text-xs text-slate-400">${esc(a.pc_code)} • ${new Date(a.created_at).toLocaleString("id-ID")}</span>
       </div>
@@ -296,9 +419,8 @@ async function adminRentAccHtml() {
         <span class="text-slate-500">${t("user")}:</span><span>${esc(a.username)}</span>
         <span class="text-slate-500">${t("pass")}:</span><span class="text-emerald-300">${esc(a.password)}</span>
       </div>
-      <div class="text-xs mt-2">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
-      ${a.task_status === "failed" ? `<div class="text-xs text-red-300 mt-1">${String(a.task_result || "").includes("14 characters") ? t("task_fail_shortpass") : t("task_fail_hint")}</div>` : ""}
-      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="btn btn-ghost btn-sm mt-3">📋 ${t("copy_all")}</button>`;
+      <div class="text-xs mt-2.5">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
+      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="btn btn-ghost btn-sm mt-3">${t("copy_all")} ⧉</button>`;
     } else {
       html += `<div class="text-sm text-slate-500">${t("rent_acc_empty")}</div>`;
     }
@@ -318,19 +440,47 @@ async function adminRentAccHtml() {
       </div>`;
     }
     return html + `</div>`;
-  }).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("rent_acc_empty")}</div>`) + `</div>`;
+  }).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("rent_acc_empty")}</div>`;
+  return `<div class="card rounded-2xl p-4 mb-4 text-sm">${t("rent_acc_hint")}</div>
+  <div class="grid gap-3" id="rentaccList">${inner}</div>`;
 }
-function taskBadge(status, result, pcStatus) {
-  if (status === "done") return chip("✅ " + t("task_done"), "emerald");
-  if (status === "failed") return chip("❌ " + t("task_failed"), "red") + ` <span class="mono text-red-300 text-xs">${esc((result || "").slice(0, 120))}</span>`;
-  if (status === "claimed") return chip("⏳ " + t("task_claimed"), "amber");
-  return chip("⏳ " + t("task_pending"), "slate") + ` <span class="text-slate-400 text-xs">${(pcStatus === "offline" || !pcStatus) ? t("task_pending_off") : t("task_pending_on")}</span>`;
+function rentAccKeyOf(rows) { return sig(rows.map((a) => a.id + ":" + (a.status || "") + ":" + (a.task_status || "") + ":" + (a.pc_status || ""))); }
+async function adminRentAccHtml() {
+  const r = await api("/api/admin/rent-accounts");
+  const rows = r.data || [];
+  live.keys.rentacc = rentAccKeyOf(rows);
+  return rentAccListHtml(rows);
+}
+async function liveRentAcc() {
+  const r = await api("/api/admin/rent-accounts");
+  const rows = r.data || [];
+  const key = rentAccKeyOf(rows);
+  if (key !== live.keys.rentacc) {
+    live.keys.rentacc = key;
+    const l = $("#rentaccList");
+    if (l) l.outerHTML = rentAccListHtml(rows);
+  }
 }
 window.copyAcc = function (u, p, local, pub) {
   const txt = `${t("host_local")} : ${local}\n${t("host_public")} : ${pub}\n${t("user")} : ${u}\n${t("pass")} : ${p}`;
   navigator.clipboard?.writeText(txt).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), txt));
 };
 
+/* ── tab ORDERS: aksi approve/reject ──────────────────────────────────── */
+window.approveOrder = async function (id) {
+  if (!confirm(t("confirm_approve"))) return;
+  const r = await api(`/api/admin/orders/${id}/approve`, { method: "POST" });
+  toast(r.message || "OK");
+  if (r.ok && r.rdpPass) alert(`${t("rdp_created")}${r.rdpUser}${t("rdp_created_2")}${r.rdpPass}${t("rdp_created_3")}`);
+  renderBody();
+};
+window.rejectOrder = async function (id) {
+  if (!confirm(t("confirm_reject"))) return;
+  const r = await api(`/api/admin/orders/${id}/reject`, { method: "POST" });
+  toast(r.message || "OK"); renderBody();
+};
+
+/* ── tab USERS / VOUCHERS / SETTINGS / AUDIT ──────────────────────────── */
 async function adminUsersHtml() {
   const r = await api("/api/admin/users");
   const rows = r.data || [];
@@ -343,7 +493,7 @@ async function adminUsersHtml() {
       <span class="ml-auto flex flex-wrap gap-2">
         <select id="role-${u.id}" class="input !w-auto !py-1.5 text-xs"><option ${u.role === "user" ? "selected" : ""}>user</option><option ${u.role === "admin" ? "selected" : ""}>admin</option><option ${u.role === "superadmin" ? "selected" : ""}>superadmin</option></select>
         <button onclick="saveUser('${u.id}')" class="btn btn-ghost btn-sm">${t("btn_save_user")}</button>
-        <button onclick="resetPass('${u.id}')" class="btn btn-amber btn-sm">${t("btn_reset_pw")}</button>
+        <button onclick="resetPass('${u.id}')" class="btn btn-ghost btn-sm">${t("btn_reset_pw")}</button>
       </span>
     </div>`).join("") + `</div>`;
 }
@@ -396,6 +546,7 @@ async function adminAuditHtml() {
   return `<div class="grid gap-1 text-xs mono">` + rows.slice(0, 100).map((a) => `<div class="card rounded-lg p-2 flex flex-wrap gap-x-2"><span class="text-slate-400">${new Date(a.created_at).toLocaleString("id-ID")}</span>• <b>${esc(a.actor_name)}</b> • ${esc(a.action)} • <span class="text-slate-400">${esc(a.entity)}/${esc(a.entity_id)}</span></div>`).join("") + `</div>`;
 }
 
+/* ── init ─────────────────────────────────────────────────────────────── */
 (async () => {
   await loadMe();
   navInit("admin");
@@ -405,13 +556,15 @@ async function adminAuditHtml() {
   }
   if (!isAdminRole(state.me.role)) {
     $("#dashWrap").innerHTML = `<div class="card rounded-2xl p-8 max-w-md mx-auto text-sm text-center space-y-3">
-      <div class="text-3xl">⛔</div><b>${t("denied_title")}</b>
-      <p class="text-slate-400">${t("denied_desc", { role: `<b>${esc(state.me.role)}</b>` })}</p>
+      <b class="text-lg">${t("denied_title")}</b>
+      <p class="text-slate-400 text-xs">${t("denied_desc", { role: `<b>${esc(state.me.role)}</b>` })}</p>
       <a href="/app" class="btn btn-primary">${t("back_my_dash")}</a>
     </div>`;
     return;
   }
   $("#dashRole").textContent = `${t("login_as")}${state.me.username}${t("role")}${state.me.role}`;
+  paintLive();
   renderTabs();
   renderBody();
+  schedule();
 })();
