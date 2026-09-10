@@ -46,7 +46,7 @@ const CONFIG_FILE =
 // Nama file & "process image name" mengikuti nama exe (mis. rentalrdp-agent-v1.exe).
 const AGENT_EXE_NAME = (process.execPath || "rentalrdp-agent").split(/[\\/]/).pop()!;
 const PROC_BASE = AGENT_EXE_NAME.replace(/\.exe$/i, "");
-type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string };
+type Config = { api: string; token: string; interval: number; autostart?: boolean; version?: string; origin_dir?: string };
 const DEFAULT: Config = { api: "", token: "", interval: 15 };
 
 function loadConfig(): Config {
@@ -231,46 +231,61 @@ async function referencedAgentRefs(): Promise<string[]> {
   return refs;
 }
 
-// Hapus exe agent versi LAMA di folder yang sama, sisakan versi sekarang (dan yang lebih baru).
-// Sebelum dihapus, proses yang masih menjalankan file itu (mis. instance boot task / watchdog)
-// dibunuh dulu — itu penyebab "masih di gunakan" sehingga file tak bisa dihapus manual.
-async function cleanupOldAgents() {
-  try {
-    const curBase = basename(process.execPath).toLowerCase();
-    const files = readdirSync(EXE_DIR).filter((f) => /^windows-rentalrdp-agent-v\d+\.exe$/i.test(f));
-    const refs = IS_WIN ? await referencedAgentRefs() : [];
-    const isReferenced = (f: string) => refs.some((r) => r.includes(f.toLowerCase()));
-    for (const f of files) {
-      if (f.toLowerCase() === curBase) continue;
-      const m = f.match(/v(\d+)\.exe$/i);
-      if (!m) continue;
-      if (Number(m[1]) > Number(VERSION)) continue;
-      // Jika boot task / HKCU Run / watchdog MASIH menunjuk exe ini (mis. gagal update saat
-      // bukan admin), jangan hapus — kalau dihapus auto-start akan rusak.
-      if (isReferenced(f)) {
-        log(`Lewati ${f} — masih dirujuk auto-start (update dulu via menu 1 sebagai Administrator).`);
-        continue;
+// Hapus exe agent versi LAMA (windows-rentalrdp-agent-v*.exe) dari folder yang relevan:
+//  - EXE_DIR (folder exe yang sedang jalan),
+//  - STABLE_DIR (lokasi permanen),
+//  - extraDirs (mis. folder asal update / download).
+// Yang DISISAKAN: exe yang sedang berjalan (kalau folder itu = EXE_DIR) dan versi tertinggi
+// yang ada (pegangan untuk update berikutnya). Sebelum dihapus, proses yang masih menjalankan
+// file itu dibunuh dulu — penyebab "masih di gunakan" sehingga file tak bisa dihapus manual.
+// Catatan versi: versi dikenali dari digit pertama setelah "v"; nama duplikat unduhan
+// seperti "windows-rentalrdp-agent-v20 (1).exe" ikut dibersihkan.
+async function cleanupOldAgents(extraDirs: string[] = []) {
+  const dirs = new Set<string>([EXE_DIR, ...(process.platform === "win32" ? [STABLE_DIR] : []), ...extraDirs]);
+  for (const dir of dirs) {
+    try {
+      const files = readdirSync(dir).filter((f) => /^windows-rentalrdp-agent-v\d+.*\.exe$/i.test(f));
+      if (!files.length) continue;
+      const refs = process.platform === "win32" ? await referencedAgentRefs() : [];
+      const ver = (f: string) => {
+        const m = f.match(/v(\d+)/i);
+        return m ? Number(m[1]) : 0;
+      };
+      let maxV = -1;
+      for (const f of files) maxV = Math.max(maxV, ver(f));
+      for (const f of files) {
+        const full = join(dir, f);
+        // Jangan hapus exe yang sedang dijalankan dari folder ini.
+        if (dir.toLowerCase() === EXE_DIR.toLowerCase() && f.toLowerCase() === basename(process.execPath).toLowerCase()) continue;
+        // Sisakan versi tertinggi — pegangan untuk update berikutnya.
+        if (ver(f) >= maxV) continue;
+        // Jika boot task / HKCU Run / watchdog MASIH menunjuk exe ini, jangan hapus —
+        // kalau dihapus auto-start akan rusak.
+        if (refs.some((r) => r.includes(f.toLowerCase()))) {
+          clog(`Lewati ${f} — masih dirujuk auto-start (update dulu via menu 1 sebagai Administrator).`);
+          continue;
+        }
+        let gone = false;
+        for (let i = 0; i < 15 && !gone; i++) {
+          await runExe(["taskkill", "/f", "/im", f]);
+          Bun.sleepSync(300);
+          try {
+            rmSync(full, { force: true });
+            gone = true;
+          } catch {}
+        }
+        clog(gone ? `Hapus versi lama: ${f}` : `Hapus ${f} GAGAL (masih di pakai / ke-lock) — coba hapus manual.`);
       }
-      const full = join(EXE_DIR, f);
-      let first = true;
-      for (let i = 0; i < 12 && existsSync(full); i++) {
-        if (first) { await runExe(["taskkill", "/f", "/im", f]); first = false; }
-        await runExe(["taskkill", "/f", "/im", f]);
-        Bun.sleepSync(400);
-        try { rmSync(full, { force: true }); } catch {}
-      }
-      if (existsSync(full)) {
-        log(`Hapus ${f} GAGAL (masih di pakai) — coba hapus manual setelah restart.`);
-      } else {
-        log(`Versi lama dihapus: ${f}`);
-      }
+    } catch (e) {
+      clog("Bersihkan exe lama gagal: " + String(e).slice(0, 120));
     }
-    try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
-    for (const f of readdirSync(EXE_DIR).filter((x) => x.endsWith(".new"))) {
-      try { rmSync(join(EXE_DIR, f), { force: true }); } catch {}
-    }
-  } catch (e) {
-    log("Bersihkan exe lama gagal: " + String(e).slice(0, 120));
+  }
+  // Sisa file update parser lama (.update & *.new) — bersihkan juga.
+  try { rmSync(join(EXE_DIR, ".update"), { recursive: true, force: true }); } catch {}
+  for (const dir of [EXE_DIR, ...(process.platform === "win32" ? [STABLE_DIR] : [])]) {
+    try {
+      for (const f of readdirSync(dir).filter((x) => x.endsWith(".new"))) rmSync(join(dir, f), { force: true });
+    } catch {}
   }
 }
 
@@ -763,6 +778,16 @@ function log(msg: string) {
   console.log(`[${ts}] ${msg}`);
 }
 
+// Log yang juga ditulis ke file rentalrdp-update.log — biar penyebab "exe lawas tak terhapus"
+// tetap bisa dibaca walau terminal sudah tertutup (update berlanjut di background).
+function clog(msg: string) {
+  log(msg);
+  try {
+    writeFileSync(join(STABLE_DIR, "rentalrdp-update.log"), `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
+    writeFileSync(join(EXE_DIR, "rentalrdp-update.log"), `[${new Date().toISOString()}] ${msg}\n`, { flag: "a" });
+  } catch {}
+}
+
 async function apiCall(cfg: Config, path: string, opts?: RequestInit) {
   const url = `${cfg.api}${path}`;
   return fetch(url, {
@@ -1076,10 +1101,13 @@ async function ensureStableCopy() {
   if (process.platform !== "win32" || isStableSelf()) return;
   try {
     mkdirSync(STABLE_DIR, { recursive: true });
-    const curCfg = existsSync(CONFIG_FILE) ? readFileSync(CONFIG_FILE, "utf8").trim() : "";
-    if (curCfg) {
-      try { writeFileSync(join(STABLE_DIR, "config.json"), curCfg, "utf8"); } catch {}
-    }
+    // Catat folder ASAL (tempat exe ber-berversi / update biasa disimpan) — dipakai
+    // cleanuper versi lama nanti, walau agent sudah pindah jalan di lokasi permanen.
+    try {
+      const c = loadConfig();
+      saveConfig({ ...c, origin_dir: EXE_DIR } as Config);
+      writeFileSync(join(STABLE_DIR, "config.json"), JSON.stringify({ ...c, origin_dir: EXE_DIR }, null, 2), "utf8");
+    } catch {}
     for (let i = 0; i < 10; i++) {
       try {
         copyFileSync(process.execPath, STABLE_EXE);
@@ -1090,9 +1118,9 @@ async function ensureStableCopy() {
         Bun.sleepSync(500);
       }
     }
-    if (!existsSync(STABLE_EXE)) log("⚠️ Gagal menyalin agent ke lokasi permanen.");
+    if (!existsSync(STABLE_EXE)) clog("⚠️ Gagal menyalin agent ke lokasi permanen.");
   } catch (e) {
-    log("ensureStableCopy gagal: " + String(e).slice(0, 150));
+    clog("ensureStableCopy gagal: " + String(e).slice(0, 150));
   }
 }
 
@@ -1285,9 +1313,10 @@ async function interactiveMenu(): Promise<"run" | "exit"> {
           continue;
         }
         await autoInstall();
-        // Pastikan boot task / watchdog menunjuk exe SEKARANG, lalu bersihkan exe versi lama.
+        // Pastikan boot task / watchdog menunjuk exe SEKARANG, lalu bersihkan exe versi lama
+        // (termasuk di folder asal update kalau berbeda).
         await syncAutoStartPath();
-        await cleanupOldAgents();
+        await cleanupOldAgents(loadConfig().origin_dir ? [loadConfig().origin_dir] : []);
         console.log("");
         const runNow = await prompt("  Jalankan agent sekarang? (Y/n): ");
         if (runNow?.toLowerCase() !== "n") return "run";
@@ -1385,9 +1414,9 @@ loop(cfg);
 // Nama file bisa berubah saat update (rename ke versi terbaru) → samakan lagi
 // boot task / watchdog / HKCU Run biar tetap menunjuk exe yang sekarang.
 await syncAutoStartPath();
-// Self-heal: setiap kali agent versi terbaru jalan, exe versi lama di folder yang sama
-// (yang biasanya terkunci oleh instance boot task/watchdog) dibunuh & dihapus.
-await cleanupOldAgents();
+// Self-heal: hapus exe versi lama — termasuk di folder asal update (origin_dir) —
+// supaya folder tidak menumpuk file lawas yang "kok nggak kehapus".
+await cleanupOldAgents(loadConfig().origin_dir ? [loadConfig().origin_dir] : []);
 // Self-heal profil: setiap boot, folder profil yatim (C:\Users) dibersihkan pelan-pelan
 // tanpa memblokir apa-apa — sisa obake/rent_ lama pasti hilang cepat atau lambat.
 sweepOrphanProfiles().catch(() => {});
