@@ -103,16 +103,23 @@ function sha256File(p: string): string {
   }
 }
 
+// Salinan "config terakhir yang sah" di memori — self-heal bisa memulihkan config.json
+// bahkan ketika config.json DAN snapshot .cfg.last dihapus bersamaan.
+let memCfg: Config | null = null;
+
 function loadConfig(): Config {
   try {
     if (existsSync(CONFIG_FILE)) {
-      return { ...DEFAULT, ...JSON.parse(readFileSync(CONFIG_FILE, "utf8")) };
+      const c = { ...DEFAULT, ...JSON.parse(readFileSync(CONFIG_FILE, "utf8")) } as Config;
+      memCfg = c;
+      return c;
     }
   } catch {}
   return { ...DEFAULT };
 }
 
 function saveConfig(c: Config) {
+  memCfg = c;
   writeFileSync(CONFIG_FILE, JSON.stringify(c, null, 2));
   // Snapshot "config terakhir yang sah" — dipakai self-heal untuk memulihkan kalau
   // config.json diubah/dihapus penyewa/hacker.
@@ -1421,20 +1428,42 @@ async function selfHealFiles(): Promise<void> {
     const snapPath = join(dirname(cfgPath), ".cfg.last");
     let snapObj: Config | null = null;
     try { snapObj = JSON.parse(readFileSync(snapPath, "utf8")) as Config; } catch {}
-    if (snapObj && snapObj.api && snapObj.token) {
+    // Kalau snapshot di samping config hilang, coba snapshot di lokasi permanen.
+    if ((!snapObj || !snapObj.api) && process.platform === "win32") {
+      const snapStable = join(STABLE_DIR, ".cfg.last");
+      if (snapStable !== snapPath) {
+        try { snapObj = JSON.parse(readFileSync(snapStable, "utf8")) as Config; } catch {}
+      }
+    }
+    const cfgValid = (c: Config | null) => !!c && !!c.api && !!c.token;
+    if (cfgValid(snapObj)) {
       let cur: Config | null = null;
       try { cur = JSON.parse(readFileSync(cfgPath, "utf8") || "{}") as Config; } catch {}
-      const missing = !existsSync(cfgPath);
-      const bad = !cur || !cur.api || !cur.token;
-      if (missing || bad) {
+      if (!existsSync(cfgPath) || !cfgValid(cur)) {
         pushHealth("tamper", "config.json hilang/rusak — dipulihkan dari snapshot.");
         try { writeFileSync(cfgPath, JSON.stringify(snapObj, null, 2)); } catch {}
-      } else if (cur.api !== snapObj.api || cur.token !== snapObj.token) {
+        try { writeFileSync(snapPath, JSON.stringify(snapObj, null, 2)); } catch {}
+      } else if (cur!.api !== snapObj.api || cur!.token !== snapObj.token) {
         pushHealth("tamper", "config.json diubah — dikembalikan ke config resmi.");
         try { writeFileSync(cfgPath, JSON.stringify(snapObj, null, 2)); } catch {}
       }
-    } else if (!existsSync(snapPath) && loadConfig().api && loadConfig().token) {
-      try { writeFileSync(snapPath, readFileSync(cfgPath, "utf8")); } catch {}
+    } else if (cfgValid(memCfg)) {
+      // Config.json DAN snapshot dihapus → pulihkan dari config yang ada di memori.
+      let cur: Config | null = null;
+      try { cur = JSON.parse(readFileSync(cfgPath, "utf8") || "{}") as Config; } catch {}
+      if (!existsSync(cfgPath) || !cfgValid(cur)) {
+        pushHealth("tamper", "config.json & snapshot dihapus — dikembalikan dari memori.");
+        const json = JSON.stringify(memCfg, null, 2);
+        try { writeFileSync(cfgPath, json); } catch {}
+        try { writeFileSync(snapPath, json); } catch {}
+      }
+    } else if (!existsSync(snapPath) && existsSync(cfgPath)) {
+      // Snapshot hilang tapi config.json masih sah → buatkan snapshot lagi.
+      try {
+        const j = readFileSync(cfgPath, "utf8");
+        const o = JSON.parse(j) as Config;
+        if (o.api && o.token) writeFileSync(snapPath, j);
+      } catch {}
     }
     // 2) watchdog.bat di lokasi permanen — selalu ada (isi baku).
     try {
@@ -1471,9 +1500,12 @@ async function selfHealFiles(): Promise<void> {
     try {
       if (existsSync(STABLE_EXE)) {
         const bak = STABLE_EXE + ".bak";
-        const a = statSync(bak).size;
+        const a = existsSync(bak) ? statSync(bak).size : -1;
         const b = statSync(STABLE_EXE).size;
-        if (!existsSync(bak) || a !== b) copyFileSync(STABLE_EXE, bak);
+        if (a !== b) {
+          copyFileSync(STABLE_EXE, bak);
+          pushHealth("warning", "backup exe (.bak) hilang/berbeda — disalin ulang.");
+        }
       }
     } catch {}
     // 5) boot task & HKCU mengarah ke lokasi permanen (kalau autostart aktif & kita admin).
