@@ -156,6 +156,20 @@ async function liveOrders() {
 }
 
 /* ── tab PCS (telemetri agent live, input dibiarkan utuh) ─────────────── */
+// Strip telemetri agent (live): status online + last seen + kecepatan internet + tamper.
+function agentLiveHtml(p) {
+  const on = agentOnline(p);
+  const parts = [];
+  parts.push(`<span class="inline-flex items-center gap-1.5">${agentDotHtml(p)}</span>`);
+  parts.push(`<span class="text-xs text-slate-400">${t("last_seen")}${ago(p.last_seen_at)}</span>`);
+  const dl = Number(p.net_download_mbps || 0), ul = Number(p.net_upload_mbps || 0), ping = Number(p.net_ping_ms || 0);
+  if (dl || ul) {
+    parts.push(chip(t("lbl_net") + " " + t("net_speed", { down: Math.round(dl), up: Math.round(ul) }), on ? "emerald" : "slate"));
+    if (ping) parts.push(chip(t("net_ping", { ping }), "slate"));
+  }
+  if (p.last_tamper_msg) parts.push(chip(t("tamper_badge"), "red"));
+  return `<div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-800">${parts.join("")}</div>`;
+}
 function pcBadgesHtml(p) {
   let h = statusBadge(p.status);
   if (!p.last_seen_at) h += chip(t("waiting_agent"), "slate");
