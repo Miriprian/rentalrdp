@@ -33,6 +33,23 @@ Untuk Linux/VPS, gunakan `install.sh` (dengan Docker/PostgreSQL — lihat bagian
 
 ---
 
+## Pengembangan Tampilan
+
+Beranda, workspace penyewa, dan panel admin memakai stylesheet lokal di `public/css/` (tidak memerlukan Tailwind CDN saat dibuka).
+
+```bash
+bun run build:css   # Jalankan setelah mengubah kelas utility di HTML/JS
+bun run test:ui     # Tes sintaks, terjemahan, katalog, dan checkout
+bun run preview:ui  # Preview di localhost:3100 dengan database sementara
+bun run test:browser # Tes browser (preview:ui harus berjalan; Microsoft Edge di Windows)
+```
+
+`preview:ui` memakai data contoh yang diberi penanda **PREVIEW ONLY** dan tidak menyentuh database utama. Server biasa tetap dijalankan dengan `bun run dev` atau `bun run start`.
+
+Tes browser bisa memakai browser Chromium lain melalui environment `UI_BROWSER_PATH`. Screenshot pengujian disimpan di direktori sementara, bukan di katalog publik.
+
+Setelah mengubah aset, mulai ulang server agar metadata file statis ikut diperbarui. Hasil `build:css` disertakan di repo sehingga server produksi tidak memerlukan langkah build CSS tambahan.
+
 ## Mode Database
 
 | `DATABASE_URL` | Mode | Penggunaan |

@@ -40,6 +40,21 @@ async function api(path, opts = {}) {
 }
 const rupiah = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
 const esc = (s) => String(s ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+async function runAction(button, action, messageEl) {
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try { await action(); }
+  catch (_) {
+    if (messageEl) messageEl.textContent = t("connection_error");
+    else toast(t("connection_error"));
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+  }
+}
+function emptyStateHtml(title, description = "", action = "") {
+  return `<div class="empty-state"><p class="eyebrow">RENTALRDP / WORKSPACE</p><h3>${esc(title)}</h3>${description ? `<p>${description}</p>` : ""}${action}</div>`;
+}
 function dl(h) { const d = new Date(h); const ms = d.getTime() - Date.now(); if (ms <= 0) return "berakhir"; const H = Math.floor(ms / 3600000), M = Math.floor((ms % 3600000) / 60000); if (H > 48) return Math.floor(H / 24) + " hari lagi"; return `${H}j ${M}m lagi`; }
 function statusBadge(s) {
   const m = { available: ["chip-emerald", t("status_available")], rented: ["chip-red", t("status_rented")], maintenance: ["chip-amber", t("status_maintenance")], offline: ["chip-slate", t("status_offline")] };
@@ -112,7 +127,7 @@ function specHtml(p) {
     rows.push([t("spec_disks"), hw.disks.map((d) => `${d.capacityGb}GB ${esc(d.model || "")}${d.busType ? ` (${esc(d.busType)})` : ""}`.trim()).join(" + ")]);
   }
   if (!rows.length) return "";
-  return `<div class="mt-2 text-xs"><div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">${rows.map(([k, v]) => `<div class="text-slate-400 text-right whitespace-nowrap select-none">${k}:</div><div class="text-slate-200">${v}</div>`).join("")}</div></div>`;
+  return `<dl class="spec-table">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>`;
 }
 
 async function loadMe() {
@@ -127,48 +142,61 @@ function navInit(active) {
     const logged = !!state.me;
     const nu = $("#navUser");
     if (nu) nu.textContent = logged ? `${state.me.username} (${state.me.role})` : "";
-    const bl = $("#btnLogout");
-    if (bl) bl.classList.toggle("hidden", !logged);
+    for (const bl of document.querySelectorAll("#btnLogout, #mobileLogout")) bl.classList.toggle("hidden", !logged);
     const ba = $("#btnAdminLink");
     if (ba) ba.classList.toggle("hidden", !(logged && isAdminRole(state.me.role)));
   };
   paint();
-  const lo = $("#btnLogout");
-  if (lo) lo.onclick = async () => { await api("/api/auth/logout", { method: "POST" }); location.href = "/"; };
+  for (const lo of document.querySelectorAll("#btnLogout, #mobileLogout")) {
+    lo.onclick = () => runAction(lo, async () => { await api("/api/auth/logout", { method: "POST" }); location.href = "/"; });
+  }
   return paint;
 }
 
 // Kartu login inline untuk /app & /admin saat belum login
 function loginCardHtml(target) {
-  return `<div class="card rounded-2xl p-6 max-w-md mx-auto text-sm space-y-3">
-    <h2 class="font-extrabold text-lg">${t("login_first_title")}</h2>
-    <p class="text-slate-400 text-xs">${esc(t("login_first_desc", { target }))}</p>
-    <input id="liUser" class="input" placeholder="${esc(t("ph_username"))}" autocomplete="username"/>
-    <input id="liPass" type="password" class="input" placeholder="${esc(t("ph_password"))}" autocomplete="current-password"/>
-    <button onclick="inlineLogin('${target}')" class="btn btn-primary btn-block">${t("tab_login")}</button>
-    <div class="text-xs text-slate-400">${t("no_account")}</div>
-    <div id="loginMsg" class="text-xs text-amber-300"></div>
+  document.body.classList.add("auth-view");
+  return `<div class="auth-card">
+    <p class="eyebrow">YOUR WORKSPACE</p><h1>${t("login_first_title")}</h1>
+    <p>${esc(t("login_first_desc", { target }))}</p>
+    <form class="form-stack" onsubmit="event.preventDefault(); inlineLogin('${target}')">
+      <label for="liUser">${t("field_username")}</label><input id="liUser" class="input" autocomplete="username" required/>
+      <label for="liPass">${t("field_password")}</label><input id="liPass" type="password" class="input" autocomplete="current-password" required/>
+      <button id="inlineLoginBtn" type="submit" class="btn btn-primary btn-block">${t("tab_login")}</button>
+    </form>
+    <p class="no-account">${t("no_account")}</p><div id="loginMsg" class="form-message" role="status"></div>
   </div>`;
 }
 window.inlineLogin = async function (target) {
-  const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: $("#liUser").value.trim(), password: $("#liPass").value }) });
-  if (!r.ok) { $("#loginMsg").textContent = r.message || "Gagal"; return; }
-  location.href = target;
+  await runAction($("#inlineLoginBtn"), async () => {
+    const r = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username: $("#liUser").value.trim(), password: $("#liPass").value }) });
+    if (!r.ok) { $("#loginMsg").textContent = r.message || t("fail"); return; }
+    location.href = target;
+  }, $("#loginMsg"));
 };
 
 // Blok ganti password dipakai di /app & /admin
 function akunHtml() {
-  return `<div class="card rounded-2xl p-6 max-w-md text-sm space-y-3">
-    <div class="text-xs">${t("akun_username")}<b>${esc(state.me.username)}</b> • ${t("akun_email")}${esc(state.me.email || "")}</div>
-    <input id="oldP" type="password" placeholder="${esc(t("ph_old_pass"))}" class="input"/>
-    <input id="newP" type="password" placeholder="${esc(t("ph_new_pass"))}" class="input"/>
-    <button onclick="changePass()" class="btn btn-primary">${t("btn_change_pass")}</button>
-    ${state.me.username === "obake" ? `<div class="text-xs text-amber-300">${t("warn_obake")}</div>` : ""}
+  return `<div class="card account-panel">
+    <h2>${t("account_title")}</h2><p class="text-xs text-slate-400 mb-5">${t("account_desc")}</p>
+    <div class="account-identity">${esc(state.me.username)}<br/>${esc(state.me.email || "")}</div>
+    <form class="form-stack" onsubmit="event.preventDefault(); changePass()">
+      <label for="oldP">${t("field_old_password")}</label><input id="oldP" type="password" class="input" autocomplete="current-password" required/>
+      <label for="newP">${t("field_new_password")}</label><input id="newP" type="password" class="input" autocomplete="new-password" minlength="6" required/>
+      <button id="changePassBtn" type="submit" class="btn btn-primary">${t("btn_change_pass")}</button>
+    </form>
+    ${state.me.username === "obake" ? `<div class="account-warning">${t("warn_obake")}</div>` : ""}
   </div>`;
 }
 window.changePass = async function () {
-  const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: $("#oldP").value, newPassword: $("#newP").value }) });
-  toast(r.message || (r.ok ? "Berhasil" : "Gagal"));
+  await runAction($("#changePassBtn"), async () => {
+    const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: $("#oldP").value, newPassword: $("#newP").value }) });
+    toast(r.message || (r.ok ? t("pass_changed") : t("fail")));
+    if (r.ok) { $("#oldP").value = ""; $("#newP").value = ""; }
+  });
 };
+document.querySelectorAll("[data-close]").forEach((button) => {
+  button.addEventListener("click", () => document.getElementById(button.dataset.close)?.close());
+});
 langInit();
 themeInit();

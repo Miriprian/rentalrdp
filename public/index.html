@@ -1,179 +1,134 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title data-i18n="doc_title">Rental PC by Miriprian - Sewa PC Bare Metal</title>
-<meta name="description" content="Sewa PC fisik bare metal secara online dari Rental PC by Miriprian. Bukan VPS atau virtualisasi Proxmox. Akses RDP penuh + IP publik."/>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="/css/theme.css"/>
-<script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"/>
-<style>
-  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-  dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title data-i18n="doc_title">Rental PC by Miriprian — Sewa PC Bare Metal</title>
+  <meta name="description" content="Sewa komputer fisik dengan akses Remote Desktop penuh. Pilih spesifikasi dan durasi, terhubung dari mana saja. Rental PC by Miriprian."/>
+  <script>try{var m=localStorage.getItem('theme')||'system';document.documentElement.dataset.theme=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m}catch(e){}</script>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/utilities.css?v=41"/>
+  <link rel="stylesheet" href="/css/theme.css?v=41"/>
 </head>
-<body class="min-h-screen">
-<!-- NAV -->
-<header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-        <div>
-      <div class="font-semibold text-lg leading-none tracking-tight">Rental PC <span class="text-emerald-400">by Miriprian</span></div>
-      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare metal physical computers</div>
-    </div>
-    <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden sm:inline">Katalog</a>
-      <a href="#cara" data-i18n="nav_cara" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden md:inline">Cara Sewa</a>
-      <a href="#faq" data-i18n="nav_faq" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden md:inline">FAQ</a>
-      <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <a id="btnDash" href="/app" data-i18n="nav_dashboard" class="hidden btn btn-ghost btn-sm">Dashboard</a>
-      <a id="btnAdminNav" href="/admin" data-i18n="nav_admin" class="hidden btn btn-amber btn-sm">Admin</a>
-      <button id="btnLogin" data-i18n="nav_masuk" class="btn btn-primary btn-sm">Masuk</button>
-      <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
-    </nav>
-  </div>
-</header>
-
-<!-- HERO -->
-<section class="max-w-7xl mx-auto px-4 pt-16 pb-12">
-  <div class="grid lg:grid-cols-12 gap-10 items-end">
-    <div class="lg:col-span-7">
-      <p data-i18n="badge_bare" class="text-xs font-medium tracking-widest uppercase text-slate-400 mb-6"></p>
-      <h1 data-i18n-html="hero_h1" class="text-5xl md:text-7xl leading-[1.05] tracking-tight"></h1>
-      <p data-i18n-html="hero_p" class="mt-6 text-base md:text-lg text-slate-500 max-w-xl leading-relaxed"></p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a href="#katalog" data-i18n="cta_katalog" class="btn btn-primary btn-lg"></a>
-        <a id="heroWA" href="#" target="_blank" data-i18n="cta_wa" class="btn btn-ghost btn-lg"></a>
+<body class="site-page">
+  <a class="skip-link" href="#main" data-i18n="skip_content">Ke konten utama</a>
+  <header class="site-header">
+    <div class="site-container header-inner">
+      <a href="/" class="wordmark"><span class="brand-mark" aria-hidden="true">r<span>.</span></span><span>rental<span class="wordmark-light">rdp</span><span class="wordmark-dot">.</span><small>BY MIRIPRIAN</small></span></a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#katalog" data-i18n="nav_katalog">Katalog PC</a>
+        <a href="#cara" data-i18n="nav_cara">Cara sewa</a>
+        <a href="#faq" data-i18n="nav_faq">Pertanyaan</a>
+      </nav>
+      <div class="header-account">
+        <span id="navUser" class="nav-user hidden"></span>
+        <a id="btnDash" href="/app" data-i18n="nav_dashboard" class="hidden btn btn-primary btn-sm">Dashboard</a>
+        <a id="btnAdminNav" href="/admin" data-i18n="nav_admin" class="hidden nav-admin">Admin</a>
+        <button id="btnLogin" class="btn btn-primary btn-sm"><span data-i18n="nav_masuk">Masuk akun</span><span aria-hidden="true">↗</span></button>
+        <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-text btn-sm">Keluar</button>
       </div>
     </div>
-    <div class="lg:col-span-5 grid grid-cols-3 lg:grid-cols-1 gap-3">
-      <div class="stat"><div class="v" id="statUnits">—</div><div class="k mt-1" data-i18n="stat_units"></div></div>
-      <div class="stat"><div class="v" data-i18n="stat_uptime">Hampir 24/7</div><div class="k mt-1" data-i18n="stat_uptime_sub"></div></div>
-      <div class="stat"><div class="v" data-i18n="stat_full">Full</div><div class="k mt-1" data-i18n="stat_rdp"></div></div>
-    </div>
-  </div>
-</section>
+  </header>
 
-<!-- KATALOG -->
-<section id="katalog" class="max-w-7xl mx-auto px-4 py-12">
-  <div id="noticeBox" class="hidden mb-6 text-sm px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"></div>
-  <div class="flex items-end justify-between gap-4 mb-8">
-    <div>
-      <h2 data-i18n="katalog_title" class="text-3xl">Katalog Unit Fisik</h2>
-      <p data-i18n="katalog_sub" class="text-sm text-slate-500 mt-1">status terkini dari server</p>
-    </div>
-    <button id="btnRefresh" data-i18n="btn_refresh" class="btn btn-ghost btn-sm">Muat Ulang</button>
-  </div>
-  <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-</section>
+  <main id="main">
+    <section class="site-container hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="accent-line" aria-hidden="true"></span><span data-i18n="badge_bare">BARE METAL. REAL POSSIBILITIES.</span></p>
+        <h1 data-i18n-html="hero_h1">PC di sana.<br/><span>Kendali di sini.</span></h1>
+        <p class="hero-description" data-i18n="hero_p">Satu komputer fisik, sepenuhnya untuk Anda. Bekerja, render, atau jalankan aplikasi dari mana saja lewat Remote Desktop.</p>
+        <div class="hero-actions">
+          <a href="#katalog" class="btn btn-accent"><span data-i18n="cta_katalog">Temukan PC Anda</span><span aria-hidden="true">↗</span></a>
+          <a id="heroWA" href="#faq" class="text-link" data-i18n="cta_wa">Konsultasi dulu</a>
+        </div>
+        <div class="hero-note"><span class="dot dot-on" aria-hidden="true"></span><span data-i18n="hero_note">Perangkat fisik. Bukan virtual. Tanpa berbagi resource.</span></div>
+      </div>
+      <div class="hardware-stage">
+        <div class="stage-heading mono"><span>REMOTE WORKSTATION</span><span>FIG. 01</span></div>
+        <img src="/images/workstation.svg" width="760" height="640" alt="Ilustrasi workstation fisik dengan akses Remote Desktop" fetchpriority="high"/>
+        <div class="stage-caption"><span class="stage-cross" aria-hidden="true">+</span><p data-i18n="hardware_caption">Hardware nyata.<br/>Bukan sekadar alokasi.</p><span class="mono">CPU / GPU / RAM / SSD</span></div>
+      </div>
+    </section>
 
-<!-- CARA -->
-<section id="cara" class="max-w-7xl mx-auto px-4 py-10">
-  <h2 class="text-2xl font-extrabold text-center mb-6" data-i18n="cara_title">Cara Sewa</h2>
-  <div class="grid md:grid-cols-3 gap-5">
-    <div class="card card-hover rounded-2xl p-6">
-      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">1</div>
-      <h3 data-i18n="cara_title_1" class="font-bold mb-1"></h3>
-      <p data-i18n-html="cara_p_1" class="text-sm text-slate-300 mt-1"></p>
-    </div>
-    <div class="card card-hover rounded-2xl p-6">
-      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">2</div>
-      <h3 data-i18n="cara_title_2" class="font-bold mb-1"></h3>
-      <p data-i18n-html="cara_p_2" class="text-sm text-slate-300 mt-1"></p>
-    </div>
-    <div class="card card-hover rounded-2xl p-6">
-      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 font-extrabold flex items-center justify-center mb-3">3</div>
-      <h3 data-i18n="cara_title_3" class="font-bold mb-1"></h3>
-      <p data-i18n-html="cara_p_3" class="text-sm text-slate-300 mt-1"></p>
-    </div>
-  </div>
-</section>
+    <section class="principles" aria-label="Bare metal rental">
+      <div class="site-container principle-grid">
+        <div><span class="mono">01 /</span><p data-i18n="principle_one">Satu mesin. Satu penyewa.</p></div>
+        <div><span class="mono">02 /</span><p data-i18n="principle_two">Per jam hingga bulanan.</p></div>
+        <div><span class="mono">03 /</span><p data-i18n="principle_three">Akses penuh via RDP.</p></div>
+      </div>
+    </section>
 
-<!-- FAQ -->
-<section id="faq" class="max-w-7xl mx-auto px-4 py-10">
-  <h2 data-i18n="faq_title" class="text-2xl font-extrabold mb-5 text-center"></h2>
-  <div class="grid gap-3 text-sm max-w-3xl mx-auto">
-    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_1" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_1" class="mt-2 text-slate-300"></p></details>
-    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_2" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_2" class="mt-2 text-slate-300"></p></details>
-    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_3" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_3" class="mt-2 text-slate-300"></p></details>
-    <details class="faq card rounded-xl p-4"><summary data-i18n="faq_q_4" class="font-bold flex items-center gap-3"></summary><p data-i18n-html="faq_a_4" class="mt-2 text-slate-300"></p></details>
-  </div>
-</section>
+    <section id="katalog" class="site-container catalog section-space">
+      <div class="section-heading">
+        <div><p class="eyebrow" data-i18n="catalog_eyebrow">01 — PILIH PERANGKAT</p><h2 data-i18n="katalog_title">Mesin yang tepat.<br/>Untuk rencana Anda.</h2></div>
+        <p class="section-intro" data-i18n="katalog_sub">Spesifikasi langsung dari perangkat. Status diperbarui otomatis, harga ditampilkan apa adanya.</p>
+      </div>
+      <div id="noticeBox" class="site-notice hidden" role="note"></div>
+      <div class="catalog-toolbar">
+        <div class="filter-group" role="group" aria-label="Filter catalog">
+          <button class="filter-button is-active" data-filter="all" aria-pressed="true" data-i18n="filter_all">Semua PC</button>
+          <button class="filter-button" data-filter="available" aria-pressed="false" data-i18n="filter_available">Tersedia</button>
+        </div>
+        <div class="catalog-controls">
+          <input id="catalogSearch" class="input catalog-search" type="search" data-i18n-ph="search_pc" data-i18n-aria="search_pc" placeholder="Cari CPU, GPU, atau nama PC" aria-label="Cari CPU, GPU, atau nama PC"/>
+          <label class="sr-only" for="catalogPeriod" data-i18n="ph_plan">Paket durasi</label>
+          <select id="catalogPeriod" class="input period-select"><option value="HOURLY" data-i18n="period_hour">Per jam</option><option value="DAILY" data-i18n="period_day">Per hari</option><option value="WEEKLY" data-i18n="period_week">Per minggu</option><option value="MONTHLY" data-i18n="period_month">Per bulan</option></select>
+          <button id="btnRefresh" class="btn btn-ghost btn-sm" data-i18n="btn_refresh">Perbarui</button>
+        </div>
+      </div>
+      <div class="catalog-meta"><span><strong id="statUnits">—</strong> <span data-i18n="catalog_count">perangkat di katalog</span></span><span class="mono" data-i18n="catalog_live">STATUS LANGSUNG DARI AGENT</span></div>
+      <div id="pcGrid" class="pc-grid" aria-live="polite"><div class="loading-state" data-i18n="loading">Memuat…</div></div>
+    </section>
 
-<!-- DASHBOARD PINDAH KE URL SENDIRI: penyewa -> /app • admin -> /admin -->
+    <section id="cara" class="process-section">
+      <div class="site-container section-space">
+        <div class="section-heading"><div><p class="eyebrow" data-i18n="process_eyebrow">02 — MULAI DENGAN MUDAH</p><h2 data-i18n="cara_title">Dari pilih PC,<br/>sampai siap bekerja.</h2></div><p class="section-intro" data-i18n="process_intro">Tanpa membeli perangkat baru. Cukup pilih, selesaikan pembayaran, lalu hubungkan.</p></div>
+        <div class="process-grid">
+          <article class="process-step"><span class="step-number mono">01</span><h3 data-i18n="cara_title_1">Pilih mesin Anda</h3><p data-i18n-html="cara_p_1"></p></article>
+          <article class="process-step"><span class="step-number mono">02</span><h3 data-i18n="cara_title_2">Selesaikan pembayaran</h3><p data-i18n-html="cara_p_2"></p></article>
+          <article class="process-step"><span class="step-number mono">03</span><h3 data-i18n="cara_title_3">Ambil alih kendali</h3><p data-i18n-html="cara_p_3"></p></article>
+        </div>
+      </div>
+    </section>
 
-<footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-3">
-    <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian — Bare metal rental.</span>
-    <span class="ml-auto flex flex-wrap items-center gap-2">
-      <a class="underline hover:text-emerald-300" href="/app" data-i18n="nav_dashboard">Dashboard</a> •
-      <a class="underline hover:text-emerald-300" href="/admin" data-i18n="nav_admin">Admin</a> •
-      API: <a class="underline hover:text-emerald-300" href="/api/health">/api/health</a>
-    </span>
-    <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
-      <option value="id" data-i18n="ln_id"> Bahasa Indonesia</option>
-      <option value="en" data-i18n="ln_en"> English</option>
-    </select>
-    <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
-      <option value="system" data-i18n="ln_system"> System</option>
-      <option value="light" data-i18n="ln_light"> Light</option>
-      <option value="dark" data-i18n="ln_dark"> Dark</option>
-    </select>
-  </div>
-</footer>
+    <section id="faq" class="site-container faq-section section-space">
+      <div class="faq-heading"><p class="eyebrow" data-i18n="faq_eyebrow">03 — SEBELUM MULAI</p><h2 data-i18n="faq_title">Biar lebih jelas.</h2><p data-i18n="faq_intro">Beberapa hal yang mungkin ingin Anda ketahui.</p><a href="#katalog" class="text-link" data-i18n="cta_katalog">Temukan PC Anda</a></div>
+      <div class="faq-list">
+        <details class="faq"><summary data-i18n="faq_q_1"></summary><p data-i18n-html="faq_a_1"></p></details>
+        <details class="faq"><summary data-i18n="faq_q_2"></summary><p data-i18n-html="faq_a_2"></p></details>
+        <details class="faq"><summary data-i18n="faq_q_3"></summary><p data-i18n-html="faq_a_3"></p></details>
+        <details class="faq"><summary data-i18n="faq_q_4"></summary><p data-i18n-html="faq_a_4"></p></details>
+      </div>
+    </section>
+  </main>
 
-<!-- AUTH MODAL -->
-<dialog id="authModal" class="rounded-2xl p-0 w-[min(440px,95vw)] shadow-2xl">
-  <div class="p-6">
-    <div class="flex items-center mb-5"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('authModal').close()"></button></div>
-    <div class="grid grid-cols-2 gap-2 mb-5 text-sm">
-      <button id="tabLogin" data-i18n="tab_login" class="btn btn-primary btn-sm">Login</button>
-      <button id="tabReg" data-i18n="tab_reg" class="btn btn-ghost btn-sm">Daftar</button>
-    </div>
-    <div id="loginForm" class="space-y-3">
-      <input id="liUser" data-i18n-ph="ph_username" class="input" placeholder="username / email" autocomplete="username"/>
-      <input id="liPass" type="password" data-i18n-ph="ph_password" class="input" placeholder="password" autocomplete="current-password"/>
-      <button id="doLogin" data-i18n="tab_login" class="btn btn-primary btn-block">Masuk</button>
-    </div>
-    <div id="regForm" class="space-y-3 hidden">
-      <input id="rgUser" data-i18n-ph="ph_username_reg" class="input" placeholder="username (3-24)" autocomplete="username"/>
-      <input id="rgEmail" data-i18n-ph="ph_email" class="input" placeholder="email"/>
-      <input id="rgName" data-i18n-ph="ph_fullname" class="input" placeholder="nama lengkap"/>
-      <input id="rgWA" data-i18n-ph="ph_wa" class="input" placeholder="no. WA (08...)"/>
-      <input id="rgPass" type="password" data-i18n-ph="ph_passreg" class="input" placeholder="password min 6" autocomplete="new-password"/>
-      <button id="doReg" data-i18n="tab_reg" class="btn btn-primary btn-block">Daftar</button>
-    </div>
-    <div id="authMsg" class="text-xs mt-3 text-amber-300"></div>
-  </div>
-</dialog>
+  <footer class="site-footer"><div class="site-container">
+    <div class="footer-main"><a href="/" class="footer-wordmark">rentalrdp<span>.</span></a><p data-i18n="footer_statement">Perangkat nyata.<br/>Kemungkinan tanpa batas ruang.</p><nav aria-label="Footer"><a href="/app" data-i18n="nav_dashboard">Dashboard</a><a href="/admin" data-i18n="nav_admin">Admin</a></nav></div>
+    <div class="footer-bottom"><span data-i18n="footer_copy">© 2026 Rental PC by Miriprian.</span><div class="preferences"><label class="sr-only" for="langSel">Language / Bahasa</label><select id="langSel" aria-label="Language / Bahasa"><option value="id" data-i18n="ln_id">Bahasa Indonesia</option><option value="en" data-i18n="ln_en">English</option></select><label class="sr-only" for="themeSel" data-i18n="appearance">Tampilan</label><select id="themeSel" data-i18n-aria="appearance" aria-label="Tampilan"><option value="system" data-i18n="ln_system">Sistem</option><option value="light" data-i18n="ln_light">Terang</option><option value="dark" data-i18n="ln_dark">Gelap</option></select></div></div>
+  </div></footer>
 
-<!-- ORDER MODAL -->
-<dialog id="orderModal" class="rounded-2xl p-0 w-[min(520px,95vw)] shadow-2xl">
-  <div class="p-6">
-    <div class="flex items-center mb-3"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('orderModal').close()"></button></div>
-    <div id="orderPC" class="card rounded-xl p-3 text-sm text-slate-300 mb-4"></div>
-    <label data-i18n="ph_plan" class="text-xs text-slate-400"></label>
-    <select id="orderPlan" class="input mt-1 mb-3"></select>
-    <div class="grid grid-cols-2 gap-3">
-      <div><label data-i18n="ph_voucher" class="text-xs text-slate-400"></label><input id="orderVoucher" class="input mono mt-1" placeholder="WELCOME10"/></div>
-      <div><label data-i18n="ph_pay" class="text-xs text-slate-400"></label><select id="orderPay" class="input mt-1"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div>
-    </div>
-    <label data-i18n="ph_note" class="text-xs text-slate-400 mt-3 block"></label>
-    <input id="orderNote" class="input mt-1" placeholder="kebutuhan: game apa, render, bot, dsb"/>
-    <div id="orderTotal" class="mt-3 text-sm font-bold text-emerald-300"></div>
-    <div id="payInfo" class="mt-2 text-xs text-slate-300 bg-slate-800 rounded-xl p-3"></div>
-    <button id="doOrder" data-i18n="btn_order" class="btn btn-primary btn-block mt-4">Buat Order</button>
-    <div id="orderMsg" class="text-xs mt-2 text-amber-300"></div>
-  </div>
-</dialog>
+  <dialog id="authModal" class="modal" aria-labelledby="authTitle">
+    <div class="modal-header"><div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="authTitle" data-i18n="auth_title">Selamat datang kembali.</h2></div><button class="modal-close" data-close="authModal" data-i18n-aria="btn_close" aria-label="Tutup">×</button></div>
+    <div class="auth-tabs"><button id="tabLogin" class="auth-tab is-active" data-i18n="tab_login" aria-pressed="true">Masuk</button><button id="tabReg" class="auth-tab" data-i18n="tab_reg" aria-pressed="false">Buat akun</button></div>
+    <form id="loginForm" class="form-stack"><label for="liUser" data-i18n="field_username">Username atau email</label><input id="liUser" class="input" autocomplete="username" required/><label for="liPass" data-i18n="field_password">Password</label><input id="liPass" class="input" type="password" autocomplete="current-password" required/><button id="doLogin" class="btn btn-primary btn-block" type="submit" data-i18n="tab_login">Masuk</button></form>
+    <form id="regForm" class="form-stack hidden"><label for="rgUser" data-i18n="field_reg_username">Username</label><input id="rgUser" class="input" autocomplete="username" minlength="3" maxlength="24" required/><label for="rgEmail" data-i18n="field_email">Email</label><input id="rgEmail" class="input" type="email" autocomplete="email" required/><label for="rgName" data-i18n="field_name">Nama lengkap</label><input id="rgName" class="input" autocomplete="name"/><label for="rgWA" data-i18n="field_wa">Nomor WhatsApp</label><input id="rgWA" class="input" type="tel" autocomplete="tel"/><label for="rgPass" data-i18n="field_new_password">Password (minimal 6 karakter)</label><input id="rgPass" class="input" type="password" minlength="6" autocomplete="new-password" required/><button id="doReg" class="btn btn-primary btn-block" type="submit" data-i18n="tab_reg">Buat akun</button></form>
+    <p id="authMsg" class="form-message" role="status"></p>
+  </dialog>
 
-<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
-<script src="/js/i18n.js?v=25"></script>
-<script src="/js/common.js?v=15"></script>
-<script src="/js/landing.js?v=7"></script>
+  <dialog id="orderModal" class="modal order-modal" aria-labelledby="orderTitle">
+    <div class="modal-header"><div><p class="eyebrow" data-i18n="checkout_eyebrow">SELANGKAH LAGI</p><h2 id="orderTitle" data-i18n="order_title">Siapkan ruang kerja Anda.</h2></div><button class="modal-close" data-close="orderModal" data-i18n-aria="btn_close" aria-label="Tutup">×</button></div>
+    <div id="orderPC" class="order-machine"></div>
+    <form id="checkoutForm" class="form-stack">
+      <label for="orderPlan" data-i18n="ph_plan">Paket durasi</label><select id="orderPlan" class="input" required></select>
+      <div class="form-columns"><div><label for="orderVoucher" data-i18n="ph_voucher">Voucher (opsional)</label><input id="orderVoucher" class="input mono" placeholder="WELCOME10"/></div><div><label for="orderPay" data-i18n="ph_pay">Metode pembayaran</label><select id="orderPay" class="input"><option value="qris">QRIS</option><option value="bca">BCA</option><option value="bri">BRI</option><option value="mandiri">Mandiri</option><option value="dana">DANA</option><option value="ovo">OVO</option><option value="manual">Manual</option></select></div></div>
+      <label for="orderNote" data-i18n="ph_note">Catatan</label><input id="orderNote" class="input"/>
+      <div id="orderTotal" class="order-total"></div><div id="payInfo" class="payment-info"></div>
+      <button id="doOrder" class="btn btn-accent btn-block" type="submit" data-i18n="btn_order">Buat pesanan</button><p id="orderMsg" class="form-message" role="status"></p>
+    </form>
+  </dialog>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="/js/i18n.js?v=41"></script><script src="/js/common.js?v=41"></script><script src="/js/landing.js?v=41"></script>
 </body>
 </html>

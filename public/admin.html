@@ -1,68 +1,30 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<meta name="robots" content="noindex, nofollow"/>
-<title data-i18n="doc_title_admin">Admin Panel — Rental PC by Miriprian</title>
-<meta name="description" content="Panel admin Rental PC by Miriprian - verifikasi order, kelola PC bare metal, rental, user."/>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="/css/theme.css"/>
-<script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"/>
-<style>
-  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-</style>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="robots" content="noindex, nofollow"/>
+  <title data-i18n="doc_title_admin">Control panel — Rental PC by Miriprian</title>
+  <meta name="description" content="Control panel Rental PC by Miriprian."/>
+  <script>try{var m=localStorage.getItem('theme')||'system';document.documentElement.dataset.theme=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m}catch(e){}</script>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/utilities.css?v=41"/><link rel="stylesheet" href="/css/theme.css?v=41"/>
 </head>
-<body class="min-h-screen">
-<header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <a href="/" class="font-semibold text-lg tracking-tight">Rental PC</a>
-    <div>
-      <div class="font-extrabold text-lg leading-none"><span data-i18n="admin_panel">Admin Panel</span> <span class="text-slate-400 text-xs font-bold border border-slate-700 rounded-full px-2 py-0.5">/admin</span></div>
-      <div data-i18n="tagline_admin" class="text-[11px] text-slate-400">Rental PC by Miriprian - khusus admin & superadmin</div>
-    </div>
-    <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="/" data-i18n="nav_beranda" class="btn btn-ghost btn-sm"> Beranda</a>
-      <a href="/app" data-i18n="dash_user" class="btn btn-ghost btn-sm">Dashboard User</a>
-      <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
-      <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
-    </nav>
-  </div>
-</header>
-
-<main class="max-w-7xl mx-auto px-4 py-8" id="dashWrap">
-  <div class="flex flex-wrap items-end gap-3 mb-1">
-    <h1 class="text-2xl font-extrabold">Admin Panel</h1>
-    <div id="dashRole" class="text-xs text-slate-400 mb-1"></div>
-    <button id="liveInd" onclick="toggleLive()" class="ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 transition-colors"></button>
-  </div>
-  <div class="tabs mb-6" id="dashTabs"></div>
-  <div id="dashBody"></div>
-</main>
-
-<footer class="border-t border-slate-800 mt-10">
-  <div class="max-w-7xl mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center gap-3">
-    <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian - Bare metal rental.</span>
-    <span class="ml-auto"><a class="underline hover:text-emerald-300" href="/" data-i18n="nav_beranda">Beranda</a> • <a class="underline hover:text-emerald-300" href="/app" data-i18n="dash_user">Dashboard User</a> • <a class="underline hover:text-emerald-300" href="/api/health">API</a></span>
-    <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
-      <option value="id" data-i18n="ln_id">ID — Bahasa Indonesia</option>
-      <option value="en" data-i18n="ln_en">EN — English</option>
-    </select>
-    <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
-      <option value="system" data-i18n="ln_system">System</option>
-      <option value="light" data-i18n="ln_light">Light</option>
-      <option value="dark" data-i18n="ln_dark">Dark</option>
-    </select>
-  </div>
-</footer>
-
-<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm shadow-2xl"></div>
-<script src="/js/i18n.js?v=25"></script>
-<script src="/js/common.js?v=15"></script>
-<script src="/js/admin.js?v=18"></script>
+<body class="workspace-page">
+  <a class="skip-link" href="#dashBody" data-i18n="skip_content">Ke konten utama</a>
+  <header class="workspace-topbar">
+    <a href="/" class="wordmark"><span class="brand-mark" aria-hidden="true">r<span>.</span></span><span>rental<span class="wordmark-light">rdp</span><span class="wordmark-dot">.</span><small>CONTROL PANEL</small></span></a>
+    <nav aria-label="Main navigation"><a href="/" data-i18n="nav_beranda">Beranda</a><a href="/app" data-i18n="dash_user">Workspace</a><button id="mobileLogout" class="hidden" data-i18n="nav_keluar">Keluar</button></nav>
+  </header>
+  <main id="dashWrap" class="workspace-shell">
+    <aside class="workspace-sidebar"><p class="eyebrow">CONTROL PANEL</p><nav id="dashTabs" class="tabs" aria-label="Admin navigation"></nav><div class="sidebar-bottom"><p class="eyebrow" data-i18n="signed_in">MASUK SEBAGAI</p><span id="navUser" class="nav-user"></span><button id="btnLogout" class="hidden btn btn-text btn-sm" data-i18n="nav_keluar">Keluar</button></div></aside>
+    <section class="workspace-main">
+      <div class="workspace-heading"><div><p class="eyebrow">WORKSPACE / OPERATIONS</p><h1 id="viewTitle" data-i18n="tab_incoming">Order masuk</h1><p id="dashRole"></p></div><button id="liveInd" onclick="toggleLive()" class="live-control"></button></div>
+      <div id="dashBody" class="workspace-content" aria-live="polite"></div>
+      <footer class="workspace-footer"><span data-i18n="footer_copy">© 2026 Rental PC by Miriprian.</span><div class="preferences"><label class="sr-only" for="langSel">Language / Bahasa</label><select id="langSel" aria-label="Language / Bahasa"><option value="id" data-i18n="ln_id">Bahasa Indonesia</option><option value="en" data-i18n="ln_en">English</option></select><label class="sr-only" for="themeSel" data-i18n="appearance">Tampilan</label><select id="themeSel" data-i18n-aria="appearance" aria-label="Tampilan"><option value="system" data-i18n="ln_system">Sistem</option><option value="light" data-i18n="ln_light">Terang</option><option value="dark" data-i18n="ln_dark">Gelap</option></select></div></footer>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="/js/i18n.js?v=41"></script><script src="/js/common.js?v=41"></script><script src="/js/admin.js?v=41"></script>
 </body>
 </html>

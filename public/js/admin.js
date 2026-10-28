@@ -1,5 +1,5 @@
 /* Rental PC by Miriprian — panel admin (/admin): order, PC, rental, user, voucher, settings, audit */
-let tab = "orders";
+let tab = location.hash.slice(1) || "orders";
 
 /*  status chip (tanpa emoji, palet minimal)  */
 const adminOrderStatusChip = (s) => {
@@ -74,10 +74,12 @@ async function liveTick() {
 function renderTabs() {
   const tabs = [["orders", t("tab_incoming")], ["pcs", t("tab_pcs")], ["rentals", t("tab_active_rentals")], ["rentacc", t("tab_rent_acc")], ["users", t("tab_users")], ["vouchers", t("tab_vouchers")], ["settings", t("tab_settings")], ["audit", t("tab_audit")], ["akun", t("tab_akun")]];
   if (!tabs.find((t) => t[0] === tab)) tab = "orders";
-  $("#dashTabs").innerHTML = tabs.map(([k, l]) => `<button onclick="setTab('${k}')" class="tab ${tab === k ? "tab-on" : ""}">${l}</button>`).join("");
+  $("#dashTabs").innerHTML = tabs.map(([k, l], i) => `<button onclick="setTab('${k}')" class="tab ${tab === k ? "tab-on" : ""}" ${tab === k ? 'aria-current="page"' : ""}><span class="tab-index" aria-hidden="true">0${i + 1}</span>${esc(l.trim())}</button>`).join("");
+  $("#viewTitle").textContent = tabs.find(([k]) => k === tab)[1].trim();
 }
 window.setTab = function (k) {
   tab = k;
+  history.replaceState(null, "", `#${k}`);
   renderTabs();
   renderBody();
   schedule();
@@ -85,30 +87,33 @@ window.setTab = function (k) {
 
 async function renderBody() {
   const b = $("#dashBody");
-  b.innerHTML = `<div class="text-sm text-slate-400">${t("loading")}</div>`;
+  const selected = tab;
+  b.innerHTML = `<div class="loading-state">${t("loading")}</div>`;
   try {
-    if (tab === "orders") b.innerHTML = await adminOrdersHtml();
-    else if (tab === "pcs") b.innerHTML = await adminPcsHtml();
-    else if (tab === "rentals") b.innerHTML = await adminRentalsHtml();
-    else if (tab === "rentacc") b.innerHTML = await adminRentAccHtml();
-    else if (tab === "users") b.innerHTML = await adminUsersHtml();
-    else if (tab === "vouchers") b.innerHTML = await adminVouchersHtml();
-    else if (tab === "settings") b.innerHTML = await adminSettingsHtml();
-    else if (tab === "audit") b.innerHTML = await adminAuditHtml();
-    else b.innerHTML = akunHtml();
-  } catch (e) { b.innerHTML = `<div class="text-red-300 text-sm">${t("load_fail")}${esc(e.message)}</div>`; }
+    let html;
+    if (selected === "orders") html = await adminOrdersHtml();
+    else if (selected === "pcs") html = await adminPcsHtml();
+    else if (selected === "rentals") html = await adminRentalsHtml();
+    else if (selected === "rentacc") html = await adminRentAccHtml();
+    else if (selected === "users") html = await adminUsersHtml();
+    else if (selected === "vouchers") html = await adminVouchersHtml();
+    else if (selected === "settings") html = await adminSettingsHtml();
+    else if (selected === "audit") html = await adminAuditHtml();
+    else html = akunHtml();
+    if (selected === tab) b.innerHTML = html;
+  } catch (e) { if (selected === tab) b.innerHTML = emptyStateHtml(t("load_fail"), esc(e.message)); }
 }
 
 /*  tab ORDERS  */
 function statCardsHtml(st) {
   const stats = [
-    ["Users", st.users ?? 0],
-    ["PC", st.pcs ?? 0],
-    ["Pending", st.pendingOrders ?? 0],
-    ["Aktif", st.activeRentals ?? 0],
-    ["Revenue", rupiah(st.revenue ?? 0)],
+    [t("stats_users"), st.users ?? 0],
+    [t("stats_pcs"), st.pcs ?? 0],
+    [t("stats_pending"), st.pendingOrders ?? 0],
+    [t("stats_active"), st.activeRentals ?? 0],
+    [t("stats_revenue"), rupiah(st.revenue ?? 0)],
   ].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
-  return `<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" id="statGrid">${stats}</div>`;
+  return `<div class="stats-grid" id="statGrid">${stats}</div>`;
 }
 function ordersListHtml(rows) {
   const inner = rows.length ? rows.map((o) => `
@@ -130,7 +135,7 @@ function ordersListHtml(rows) {
           <button onclick="approveOrder('${o.id}')" class="btn btn-primary btn-sm">${t("btn_approve")}</button>
           <button onclick="rejectOrder('${o.id}')" class="btn btn-danger btn-sm">${t("btn_reject")}</button>
         </div>` : ""}
-    </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_orders_admin")}</div>`;
+    </div>`).join("") : emptyStateHtml(t("admin_empty_title"), t("empty_orders_admin"));
   return `<div class="grid gap-4" id="ordersList">${inner}</div>`;
 }
 function orderKey(o) { return o.id + ":" + o.status + ":" + (o.updated_at || o.created_at); }
@@ -188,50 +193,45 @@ function pcTaskHtml(p) {
 }
 let agentSetupHtml = "";
 function pcCardHtml(p) {
-  return `<div class="card card-hover rounded-2xl p-5 text-sm" data-pcid="${p.id}">
-    <div class="flex flex-wrap gap-2 items-center">
-      <b class="mono text-lg text-slate-200">${esc(p.code)}</b>
-      <span data-badges>${pcBadgesHtml(p)}</span>
-      <span class="ml-auto text-xs text-slate-400">${esc(p.ip_public || "-")}</span>
+  return `<article class="card pc-admin-card" data-pcid="${p.id}">
+    <div class="pc-admin-header"><b class="mono text-lg">${esc(p.code)}</b><span data-badges>${pcBadgesHtml(p)}</span><span class="ml-auto text-xs text-slate-400">${esc(p.name)}</span></div>
+    <div class="pc-admin-body"><div data-live>${agentLiveHtml(p)}</div><div data-task>${pcTaskHtml(p)}</div>
+      ${p.last_tamper_msg ? `<div class="mt-2 text-xs text-red-300">${t("tamper_note")} ${esc(String(p.last_tamper_msg).slice(0, 140))}</div>` : ""}
+      <div data-spek>${p.cpu ? specHtml(p) : `<div class="mt-3 text-xs text-slate-400">${t("spek_wait")}</div>`}</div>
     </div>
-    <div data-live>${agentLiveHtml(p)}</div>
-    <div data-task>${pcTaskHtml(p)}</div>
-    ${p.last_tamper_msg ? `<div class="mt-2 text-xs text-red-300">${t("tamper_note")} ${esc(String(p.last_tamper_msg).slice(0, 140))}</div>` : ""}
-    <div data-spek>${p.cpu ? specHtml(p) : `<div class="mt-3 text-slate-300">${esc(p.name)} ${t("spek_wait")}</div>`}</div>
-    <div class="flex flex-wrap gap-2 mt-4">
-      <select id="st-${p.id}" class="input !w-auto !py-2 text-xs"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select>
-      <input id="ip-${p.id}" value="${esc(p.ip_public || "")}" placeholder="IP publik" class="input !w-36 !py-2 text-xs"/>
-      <input id="pd-${p.id}" type="number" value="${p.price_daily}" placeholder="${esc(t("ph_price_day"))}" title="${esc(t("tt_price_day"))}" class="input !w-28 !py-2 text-xs"/>
-      <input id="pm-${p.id}" type="number" value="${p.price_monthly}" placeholder="${esc(t("ph_price_month"))}" title="${esc(t("tt_price_month"))}" class="input !w-28 !py-2 text-xs"/>
-      <button onclick="savePc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_save")}</button>
+    <div class="pc-admin-controls">
+      <div><label for="st-${p.id}">Status</label><select id="st-${p.id}" class="input"><option ${p.status === "available" ? "selected" : ""}>available</option><option ${p.status === "rented" ? "selected" : ""}>rented</option><option ${p.status === "maintenance" ? "selected" : ""}>maintenance</option><option ${p.status === "offline" ? "selected" : ""}>offline</option></select></div>
+      <div><label for="ip-${p.id}">${t("host_public")}</label><input id="ip-${p.id}" value="${esc(p.ip_public || "")}" class="input"/></div>
+      <div><label for="pd-${p.id}">${t("tt_price_day")}</label><input id="pd-${p.id}" type="number" min="0" value="${p.price_daily}" class="input"/></div>
+      <div><label for="pm-${p.id}">${t("tt_price_month")}</label><input id="pm-${p.id}" type="number" min="0" value="${p.price_monthly}" class="input"/></div>
+      <button onclick="savePc('${p.id}')" class="btn btn-primary btn-sm">${t("btn_save")}</button>
+    </div>
+    <div class="pc-admin-actions">
       ${p.last_seen_at && !p.is_active ? `<button onclick="publishPc('${p.id}')" class="btn btn-primary btn-sm">${t("btn_publish")}</button>` : ""}
       ${p.is_active ? `<button onclick="unpublishPc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_unpublish")}</button>` : ""}
       <button onclick="regenToken('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_token")}</button>
-      <button onclick="mkRentUser('${p.id}')" class="btn btn-primary btn-sm">${t("btn_mk_manual")}</button>
+      <button onclick="mkRentUser('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_mk_manual")}</button>
       <button onclick="rmRentUser('${p.id}','${esc(p.code)}')" class="btn btn-danger btn-sm">${t("btn_rm_manual")}</button>
       <button onclick="restartPc('${p.id}')" class="btn btn-ghost btn-sm">${t("btn_restart")}</button>
       <button onclick="delPc('${p.id}')" class="btn btn-danger btn-sm">${t("btn_delete")}</button>
     </div>
-    <div class="text-xs text-slate-500 mt-3 flex flex-wrap gap-x-3 gap-y-1">
+    <div class="text-xs text-slate-500 px-6 pb-5 flex flex-wrap gap-x-3 gap-y-1">
       <span>${t("price_day_1")}<b class="text-slate-200">${rupiah(p.price_hourly)}${t("price_suffix")}</b></span>
       <span>${rupiah(p.price_daily)}/hari • ${rupiah(p.price_weekly)}/minggu • ${rupiah(p.price_monthly)}/bulan</span>
     </div>
-  </div>`;
+  </article>`;
 }
 async function adminPcsHtml() {
   const [pr, ar] = await Promise.all([api("/api/pcs"), api("/api/admin/rent-accounts")]);
   const rows = pr.data || [];
   refreshAccMap(ar.data);
   return `
-    <div class="card rounded-2xl p-5 mb-5 text-sm flex flex-wrap items-center gap-3">
-      <div class="flex-1 min-w-[220px]">
-        <b class="text-slate-200">${t("add_pc")}</b>
-        <div class="text-xs text-slate-400 mt-1">${t("pc_hint")}</div>
-      </div>
+    <div class="panel-intro">
+      <div><h2>${t("add_pc")}</h2><p>${t("pc_hint")}</p></div>
       <button onclick="createPc()" class="btn btn-primary">${t("btn_add_pc")}</button>
     </div>
     <div id="agentSetup">${agentSetupHtml}</div>
-    <div class="grid gap-4" id="pcList">${rows.map(pcCardHtml).join("")}</div>`;
+    <div class="grid gap-4" id="pcList">${rows.length ? rows.map(pcCardHtml).join("") : emptyStateHtml(t("admin_empty_title"), t("empty_units"))}</div>`;
 }
 async function livePcs() {
   const [pr, ar] = await Promise.all([api("/api/pcs"), api("/api/admin/rent-accounts")]);
@@ -371,7 +371,7 @@ function rentalsListHtml(rows) {
         <span class="ml-auto text-xs text-slate-400">${lab(t("lbl_tenant"))} ${esc(x.username)} • ${lab(t("upto"))} <b class="text-slate-200">${new Date(x.end_at).toLocaleString("id-ID")}</b></span>
       </div>
       ${x.status === "active" ? `<div class="mt-4"><button onclick="terminateRental('${x.id}')" class="btn btn-danger btn-sm">${t("btn_terminate")}</button></div>` : ""}
-    </div>`).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("empty_rental_admin")}</div>`;
+    </div>`).join("") : emptyStateHtml(t("admin_empty_title"), t("empty_rentals"));
   return `<div class="grid gap-4" id="rentalsList">${inner}</div>`;
 }
 function rentalsKeyOf(rows) { return sig(rows.map((r) => r.id + ":" + r.status)); }
@@ -421,7 +421,7 @@ function rentAccListHtml(rows) {
   const inner = groups.length ? groups.map((g) => {
     const a = g.active;
     let html = `<div class="card rounded-2xl p-5 text-sm flex flex-wrap gap-5">`;
-    html += `<div class="flex-1 min-w-[260px]">`;
+    html += `<div class="flex-1 min-w-0">`;
     if (a) {
       html += `<div class="flex flex-wrap gap-2 items-center"><b class="mono text-slate-200">${esc(a.username)}</b>
         ${chip(t("rental_active"), "emerald")}
@@ -441,7 +441,7 @@ function rentAccListHtml(rows) {
     html += `</div>`;
     if (g.deleted) {
       const d = g.deleted;
-      html += `<div class="border-l border-slate-700 pl-5 min-w-[240px] opacity-70">
+      html += `<div class="border-l border-slate-700 pl-5 min-w-0 opacity-70">
         <div class="flex flex-wrap gap-2 items-center"><b class="mono text-slate-400">${esc(d.username)}</b>
           ${chip(t("rental_terminated"), "red")}
           <span class="ml-auto text-xs text-slate-500">${new Date(d.created_at).toLocaleString("id-ID")}</span>
@@ -454,7 +454,7 @@ function rentAccListHtml(rows) {
       </div>`;
     }
     return html + `</div>`;
-  }).join("") : `<div class="card rounded-2xl p-8 text-sm text-slate-400 text-center">${t("rent_acc_empty")}</div>`;
+  }).join("") : emptyStateHtml(t("admin_empty_title"), t("rent_acc_empty"));
   return `<div class="card rounded-2xl p-4 mb-4 text-sm">${t("rent_acc_hint")}</div>
   <div class="grid gap-3" id="rentaccList">${inner}</div>`;
 }
@@ -472,7 +472,11 @@ async function liveRentAcc() {
   if (key !== live.keys.rentacc) {
     live.keys.rentacc = key;
     const l = $("#rentaccList");
-    if (l) l.outerHTML = rentAccListHtml(rows);
+    if (l) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = rentAccListHtml(rows);
+      l.replaceWith(wrapper.querySelector("#rentaccList"));
+    }
   }
 }
 window.copyAcc = function (u, p, local, pub) {
@@ -505,7 +509,7 @@ async function adminUsersHtml() {
       </div>
       <span class="text-xs text-slate-400">${esc(u.email)} • ${esc(u.wa_number || "")}</span>
       <span class="ml-auto flex flex-wrap gap-2">
-        <select id="role-${u.id}" class="input !w-auto !py-1.5 text-xs"><option ${u.role === "user" ? "selected" : ""}>user</option><option ${u.role === "admin" ? "selected" : ""}>admin</option><option ${u.role === "superadmin" ? "selected" : ""}>superadmin</option></select>
+        <select id="role-${u.id}" aria-label="Role ${esc(u.username)}" class="input !w-auto !py-1.5 text-xs"><option ${u.role === "user" ? "selected" : ""}>user</option><option ${u.role === "admin" ? "selected" : ""}>admin</option><option ${u.role === "superadmin" ? "selected" : ""}>superadmin</option></select>
         <button onclick="saveUser('${u.id}')" class="btn btn-ghost btn-sm">${t("btn_save_user")}</button>
         <button onclick="resetPass('${u.id}')" class="btn btn-ghost btn-sm">${t("btn_reset_pw")}</button>
       </span>
@@ -526,11 +530,11 @@ window.resetPass = async function (id) {
 async function adminVouchersHtml() {
   const r = await api("/api/admin/vouchers");
   const rows = r.data || [];
-  return `<div class="card rounded-2xl p-4 mb-4 text-sm flex gap-2 flex-wrap">
-      <input id="vc" placeholder="${esc(t("ph_voucher_code"))}" class="input mono !w-40 !py-2 text-xs"/>
-      <input id="vd" type="number" placeholder="${esc(t("ph_discount"))}" class="input !w-32 !py-2 text-xs"/>
-      <button onclick="saveVoucher()" class="btn btn-primary btn-sm">${t("btn_save_voucher")}</button>
-    </div>
+  return `<form onsubmit="event.preventDefault(); saveVoucher()" class="card rounded-2xl p-5 mb-4 text-sm flex items-end gap-4 flex-wrap">
+      <div><label for="vc" class="block text-xs text-slate-400 mb-2">${t("ph_voucher_code")}</label><input id="vc" class="input mono !w-40" required/></div>
+      <div><label for="vd" class="block text-xs text-slate-400 mb-2">${t("ph_discount")}</label><input id="vd" type="number" min="1" max="100" class="input !w-32" required/></div>
+      <button type="submit" class="btn btn-primary">${t("btn_save_voucher")}</button>
+    </form>
     <div class="grid gap-3">` + rows.map((v) => `<div class="card rounded-xl p-4 text-sm mono flex flex-wrap gap-3">${esc(v.code)} — ${v.discount_percent}% (max ${rupiah(v.max_discount_idr)}) • ${v.used_count}/${v.quota}</div>`).join("") + `</div>`;
 }
 window.saveVoucher = async function () {
@@ -542,9 +546,9 @@ async function adminSettingsHtml() {
   const r = await api("/api/admin/settings");
   const s = r.data || {};
   const fields = ["site_name", "tagline", "wa_admin", "qris_text", "payment_bca", "notice"];
-  return `<div class="card rounded-2xl p-5 text-sm space-y-4 max-w-2xl">` + fields.map((k) => `
-    <div><label class="text-xs text-slate-400">${k}</label><textarea id="set-${k}" rows="2" class="input mt-1">${esc(s[k] || "")}</textarea></div>`).join("") + `
-    <button onclick="saveSettings()" class="btn btn-primary">${t("btn_save_settings")}</button></div>`;
+  return `<div class="card settings-panel">` + fields.map((k) => `
+    <div class="settings-field"><label for="set-${k}">${t("settings_" + k)}<small class="mono">${k}</small></label><textarea id="set-${k}" rows="2" class="input">${esc(s[k] || "")}</textarea></div>`).join("") + `
+    <div class="panel-action"><button onclick="saveSettings()" class="btn btn-primary">${t("btn_save_settings")}</button></div></div>`;
 }
 window.saveSettings = async function () {
   const keys = ["site_name", "tagline", "wa_admin", "qris_text", "payment_bca", "notice"];
@@ -560,6 +564,12 @@ async function adminAuditHtml() {
   return `<div class="grid gap-1 text-xs mono">` + rows.slice(0, 100).map((a) => `<div class="card rounded-lg p-2 flex flex-wrap gap-x-2"><span class="text-slate-400">${new Date(a.created_at).toLocaleString("id-ID")}</span>• <b>${esc(a.actor_name)}</b> • ${esc(a.action)} • <span class="text-slate-400">${esc(a.entity)}/${esc(a.entity_id)}</span></div>`).join("") + `</div>`;
 }
 
+window.addEventListener("hashchange", () => {
+  if (!state.me || !isAdminRole(state.me.role) || !$("#dashTabs")) return;
+  tab = location.hash.slice(1) || "orders";
+  renderTabs(); renderBody(); schedule();
+});
+
 /*  init  */
 (async () => {
   await loadMe();
@@ -569,14 +579,15 @@ async function adminAuditHtml() {
     return;
   }
   if (!isAdminRole(state.me.role)) {
-    $("#dashWrap").innerHTML = `<div class="card rounded-2xl p-8 max-w-md mx-auto text-sm text-center space-y-3">
+    document.body.classList.add("auth-view");
+    $("#dashWrap").innerHTML = `<div class="auth-card">
       <b class="text-lg">${t("denied_title")}</b>
       <p class="text-slate-400 text-xs">${t("denied_desc", { role: `<b>${esc(state.me.role)}</b>` })}</p>
       <a href="/app" class="btn btn-primary">${t("back_my_dash")}</a>
     </div>`;
     return;
   }
-  $("#dashRole").textContent = `${t("login_as")}${state.me.username}${t("role")}${state.me.role}`;
+  $("#dashRole").textContent = `${t("msg_welcome")}${state.me.username}.`;
   paintLive();
   renderTabs();
   renderBody();

@@ -6,6 +6,10 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts",
+    "build:css": "tailwindcss -i ./public/css/base.css -o ./public/css/utilities.css --minify",
+    "test:ui": "bun test tests/ui.test.ts",
+    "test:browser": "bun run scripts/test-browser.ts",
+    "preview:ui": "bun run scripts/preview-ui.ts",
     "db:migrate": "bun run src/db/migrate.ts",
     "seed": "bun run src/db/seed.ts",
     "setup": "bun install && bun run src/db/migrate.ts && bun run src/db/seed.ts",
@@ -28,6 +32,8 @@
     "@types/bun": "latest",
     "@types/pg": "^8.11.0",
     "drizzle-kit": "^0.28.1",
+    "playwright-core": "^1.56.1",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3"
   }
 }

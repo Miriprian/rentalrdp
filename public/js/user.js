@@ -1,124 +1,96 @@
-/* Rental PC by Miriprian — dashboard penyewa (/app) */
-let tab = "orders";
+/* Renter workspace. Existing order, proof and extension endpoints are preserved. */
+let tab = location.hash.slice(1) || "orders";
 
-const orderStatusChip = (s) => {
-  const m = {
-    pending: ["amber", t("order_pending")],
-    waiting_verification: ["amber", t("order_waiting")],
-    approved: ["emerald", t("order_approved")],
-    rejected: ["red", t("order_rejected")],
-    completed: ["slate", t("order_completed")],
-    cancelled: ["slate", t("order_cancelled")],
-  };
-  const [v, label] = m[s] || ["slate", s || "—"];
-  return chip(label, v);
+const orderStatusChip = (status) => {
+  const map = { pending: ["amber", "order_pending"], waiting_verification: ["amber", "order_waiting"], approved: ["emerald", "order_approved"], active: ["emerald", "order_active"], paid: ["emerald", "order_paid"], rejected: ["red", "order_rejected"], completed: ["slate", "order_completed"], cancelled: ["slate", "order_cancelled"] };
+  const [variant, key] = map[status] || ["slate", status || "—"];
+  return chip(esc(t(key)), variant);
 };
-const rentalStatusChip = (s) => {
-  const m = { active: ["emerald", t("rental_active")], expired: ["slate", t("rental_expired")], terminated: ["red", t("rental_terminated")] };
-  const [v, label] = m[s] || ["slate", s || "—"];
-  return chip(label, v);
+const rentalStatusChip = (status) => {
+  const map = { active: ["emerald", "rental_active"], expired: ["slate", "rental_expired"], terminated: ["red", "rental_terminated"] };
+  const [variant, key] = map[status] || ["slate", status || "—"];
+  return chip(esc(t(key)), variant);
 };
 
 function renderTabs() {
   const tabs = [["orders", t("tab_orders")], ["rentals", t("tab_rentals")], ["akun", t("tab_akun")]];
-  if (!tabs.find((t) => t[0] === tab)) tab = "orders";
-  $("#dashTabs").innerHTML = tabs.map(([k, l]) => `<button onclick="setTab('${k}')" class="tab ${tab === k ? "tab-on" : ""}">${l}</button>`).join("");
+  if (!tabs.some(([key]) => key === tab)) tab = "orders";
+  $("#dashTabs").innerHTML = tabs.map(([key, label], index) => `<button onclick="setTab('${key}')" class="tab ${tab === key ? "tab-on" : ""}" ${tab === key ? 'aria-current="page"' : ""}><span class="tab-index" aria-hidden="true">0${index + 1}</span>${esc(label.trim())}</button>`).join("");
+  $("#viewTitle").textContent = tabs.find(([key]) => key === tab)[1].trim();
 }
-window.setTab = function (k) { tab = k; renderTabs(); renderBody(); };
-
+window.setTab = function (key) { tab = key; history.replaceState(null, "", `#${key}`); renderTabs(); renderBody(); };
 async function renderBody() {
-  const b = $("#dashBody");
-  b.innerHTML = `<div class="text-sm text-slate-400">${t("loading")}</div>`;
+  const body = $("#dashBody");
+  const selected = tab;
+  body.innerHTML = `<div class="loading-state">${t("loading")}</div>`;
   try {
-    if (tab === "orders") b.innerHTML = await myOrdersHtml();
-    else if (tab === "rentals") b.innerHTML = await myRentalsHtml();
-    else b.innerHTML = akunHtml();
-  } catch (e) { b.innerHTML = `<div class="text-red-300 text-sm">${t("load_fail")}${esc(e.message)}</div>`; }
+    const html = selected === "orders" ? await myOrdersHtml() : selected === "rentals" ? await myRentalsHtml() : akunHtml();
+    if (tab === selected) body.innerHTML = html;
+  } catch (error) { if (tab === selected) body.innerHTML = emptyStateHtml(t("load_fail"), esc(error.message)); }
 }
 
 function copyBtn(text, label) {
-  const safe = JSON.stringify(text).replaceAll('"', "&quot;");
-  return `<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(${safe}).then(()=>toast('${t("copied")}'))">${label} </button>`;
+  const safe = esc(JSON.stringify(String(text || "")));
+  return `<button class="btn btn-ghost btn-sm" onclick="copyText(${safe})">${esc(label)}</button>`;
 }
+window.copyText = async function (text) {
+  try { await navigator.clipboard.writeText(text); toast(t("copied")); }
+  catch (_) { toast(t("token_manual") + " " + text); }
+};
 
 async function myOrdersHtml() {
-  const r = await api("/api/orders/mine");
-  const rows = r.data || [];
-  if (!rows.length) return `<div class="card rounded-2xl p-8 text-sm text-center">${t("empty_orders")}</div>`;
-  return `<div class="grid gap-4">` + rows.map((o) => `
-    <div class="card card-hover rounded-2xl p-5 text-sm">
-      <div class="flex flex-wrap gap-2 items-center">
-        <b class="mono text-emerald-300">${esc(o.code)}</b>
-        ${orderStatusChip(o.status)}
-        <span class="ml-auto font-extrabold text-lg text-emerald-300">${rupiah(o.total_idr)}</span>
-      </div>
-      <div class="text-slate-300 mt-2 text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
-        <div> ${esc(o.pc_name)} <span class="mono">${esc(o.pc_code)}</span></div>
-        <div> ${esc(o.plan_name)} • ${o.duration_hours} ${t("hours")}</div>
-        <div> ${t("via")} ${esc(o.payment_method)}</div>
-        <div> ${o.created_at ? new Date(o.created_at).toLocaleString("id-ID") : ""}</div>
-      </div>
-      ${o.payment_proof ? `<div class="text-xs text-slate-400 mt-1.5">${t("proof_label")} <span class="mono text-emerald-300">${esc(o.payment_proof)}</span></div>` : ""}
-      ${["pending", "waiting_verification"].includes(o.status) ? `
-        <div class="flex gap-2 mt-4">
-          <input id="proof-${o.id}" placeholder="${esc(t("ph_proof"))}" class="input !py-2 text-xs flex-1"/>
-          <button onclick="sendProof('${o.id}')" class="btn btn-amber btn-sm">${t("btn_send_proof")}</button>
-        </div>` : ""}
-    </div>`).join("") + `</div>`;
+  const response = await api("/api/orders/mine");
+  if (!response.ok) throw new Error(response.message || t("connection_error"));
+  const rows = response.data || [];
+  if (!rows.length) return emptyStateHtml(t("no_orders_title"), t("empty_orders"));
+  return `<div class="grid gap-4">${rows.map((order) => `
+    <article class="card order-card">
+      <div class="order-line"><b class="mono text-xs">${esc(order.code)}</b>${orderStatusChip(order.status)}<span class="order-amount">${rupiah(order.total_idr)}</span></div>
+      <div class="order-facts"><div><small>${t("order_device")}</small>${esc(order.pc_name)} <span class="mono text-xs">${esc(order.pc_code)}</span></div><div><small>${t("order_package")}</small>${esc(order.plan_name)} · ${order.duration_hours} ${t("hours")}</div><div><small>${t("order_payment")}</small>${esc(order.payment_method).toUpperCase()}</div><div><small>${t("order_date")}</small>${order.created_at ? new Date(order.created_at).toLocaleString(langState.lang === "en" ? "en-GB" : "id-ID") : "—"}</div></div>
+      ${order.payment_proof ? `<p class="text-xs text-slate-400 mb-4">${t("proof_label")} <span class="mono">${esc(order.payment_proof)}</span></p>` : ""}
+      ${["pending", "waiting_verification"].includes(order.status) ? `<form class="proof-form" onsubmit="event.preventDefault(); sendProof('${order.id}')"><label class="sr-only" for="proof-${order.id}">${t("ph_proof")}</label><input id="proof-${order.id}" placeholder="${esc(t("ph_proof"))}" class="input" required/><button id="proofBtn-${order.id}" type="submit" class="btn btn-primary btn-sm">${t("btn_send_proof")}</button></form>` : ""}
+    </article>`).join("")}</div>`;
 }
 window.sendProof = async function (id) {
-  const v = document.getElementById("proof-" + id).value.trim();
-  if (!v) return toast(t("need_proof"));
-  const r = await api(`/api/orders/${id}/proof`, { method: "POST", body: JSON.stringify({ paymentProof: v }) });
-  toast(r.message || (r.ok ? t("sent_ok") : t("fail")));
-  renderBody();
+  const value = document.getElementById("proof-" + id).value.trim();
+  if (!value) return toast(t("need_proof"));
+  await runAction(document.getElementById("proofBtn-" + id), async () => {
+    const response = await api(`/api/orders/${id}/proof`, { method: "POST", body: JSON.stringify({ paymentProof: value }) });
+    toast(response.message || (response.ok ? t("sent_ok") : t("fail")));
+    if (response.ok) renderBody();
+  });
 };
 
 async function myRentalsHtml() {
-  const r = await api("/api/rentals/mine");
-  const rows = r.data || [];
-  if (!rows.length) return `<div class="card rounded-2xl p-8 text-sm text-center">${t("empty_rentals")}</div>`;
-  return `<div class="grid gap-4">` + rows.map((x) => `
-    <div class="card card-hover rounded-2xl p-5 border-l-4 border-l-emerald-500/70">
-      <div class="flex flex-wrap gap-2 items-center">
-        <b class="text-lg">${esc(x.pc_name)} <span class="mono text-xs text-slate-400">${esc(x.pc_code)}</span></b>
-        ${rentalStatusChip(x.status)}
-        <span class="ml-auto text-xs text-amber-300 font-semibold"> ${dl(x.end_at)}</span>
-      </div>
-      <div class="grid sm:grid-cols-3 gap-2 mt-4 mono text-xs">
-        <div class="bg-slate-800 rounded-xl p-3">${t("host")}<br/><b class="text-emerald-300 break-all">${esc(x.rdp_host)}:${x.rdp_port}</b><div class="mt-1">${copyBtn(x.rdp_host, t("copy"))}</div></div>
-        <div class="bg-slate-800 rounded-xl p-3">${t("user")}<br/><b class="text-emerald-300 break-all">${esc(x.rdp_user)}</b><div class="mt-1">${copyBtn(x.rdp_user, t("copy"))}</div></div>
-        <div class="bg-slate-800 rounded-xl p-3">${t("pass")}<br/><b class="text-emerald-300 break-all">${esc(x.rdpPass)}</b><div class="mt-1">${copyBtn(x.rdpPass, t("copy"))}</div></div>
-      </div>
-      <div class="text-xs text-slate-400 mt-3 flex flex-wrap gap-x-4 gap-y-1">
-        <span>${t("active")} <b>${new Date(x.start_at).toLocaleString("id-ID")}</b></span>
-        <span>${t("end")} <b class="text-amber-300">${new Date(x.end_at).toLocaleString("id-ID")}</b></span>
-        <span>${t("order")} <span class="mono">${esc(x.order_code)}</span></span>
-      </div>
-      <div class="text-xs mt-3 bg-slate-800 rounded-xl p-3 flex gap-2"> <b>${t("guide_label")}</b><span>${t("guide_text")}</span></div>
-      ${x.status === "active" ? `<div class="flex flex-wrap gap-2 mt-4">
-        <button onclick="extendRental('${x.id}',24)" class="btn btn-ghost btn-sm">+${t("ext_day")}</button>
-        <button onclick="extendRental('${x.id}',168)" class="btn btn-ghost btn-sm">+${t("ext_week")}</button>
-        <button onclick="extendRental('${x.id}',720)" class="btn btn-ghost btn-sm">+${t("ext_month")}</button>
-      </div>` : ""}
-    </div>`).join("") + `</div>`;
+  const response = await api("/api/rentals/mine");
+  if (!response.ok) throw new Error(response.message || t("connection_error"));
+  const rows = response.data || [];
+  if (!rows.length) return emptyStateHtml(t("no_rentals_title"), esc(t("no_rentals_desc")), `<a href="/#katalog" class="text-link">${t("cta_katalog")}</a>`);
+  return `<div class="grid gap-4">${rows.map((rental) => `
+    <article class="card order-card">
+      <div class="order-line"><h2 class="text-lg font-medium">${esc(rental.pc_name)}</h2><span class="mono text-xs text-slate-400">${esc(rental.pc_code)}</span>${rentalStatusChip(rental.status)}<span class="ml-auto text-xs text-slate-400">${dl(rental.end_at)}</span></div>
+      <div class="rental-credentials">${[[t("host"), `${rental.rdp_host}:${rental.rdp_port}`], [t("user"), rental.rdp_user], [t("pass"), rental.rdpPass]].map(([label, value]) => `<div class="credential"><label>${label}</label><strong>${esc(value)}</strong>${copyBtn(value, t("copy"))}</div>`).join("")}</div>
+      <div class="order-facts"><div><small>${t("active")}</small>${new Date(rental.start_at).toLocaleString("id-ID")}</div><div><small>${t("end")}</small>${new Date(rental.end_at).toLocaleString("id-ID")}</div></div>
+      <p class="text-xs text-slate-400">${t("guide_text")}</p>
+      ${rental.status === "active" ? `<div class="flex flex-wrap gap-2 mt-5"><button onclick="extendRental('${rental.id}',24)" class="btn btn-ghost btn-sm">${t("ext_day")}</button><button onclick="extendRental('${rental.id}',168)" class="btn btn-ghost btn-sm">${t("ext_week")}</button><button onclick="extendRental('${rental.id}',720)" class="btn btn-ghost btn-sm">${t("ext_month")}</button></div>` : ""}
+    </article>`).join("")}</div>`;
 }
 window.extendRental = async function (id, hours) {
-  const r = await api(`/api/rentals/${id}/extend`, { method: "POST", body: JSON.stringify({ hours }) });
-  toast(r.message || "OK"); renderBody();
+  const response = await api(`/api/rentals/${id}/extend`, { method: "POST", body: JSON.stringify({ hours }) });
+  toast(response.message || "OK"); renderBody();
 };
+
+window.addEventListener("hashchange", () => {
+  if (!state.me || !$("#dashTabs")) return;
+  tab = location.hash.slice(1) || "orders";
+  renderTabs(); renderBody();
+});
 
 (async () => {
   await loadMe();
   navInit("app");
-  if (!state.me) {
-    $("#dashWrap").innerHTML = loginCardHtml("/app");
-    return;
-  }
-  $("#dashRole").textContent = t("login_as") + `${state.me.username}` + t("role") + state.me.role;
-  if (isAdminRole(state.me.role)) {
-    $("#adminHint").classList.remove("hidden");
-  }
-  renderTabs();
-  renderBody();
+  if (!state.me) { $("#dashWrap").innerHTML = loginCardHtml("/app"); return; }
+  $("#dashRole").textContent = t("msg_welcome") + state.me.username + ".";
+  $("#adminHint").classList.toggle("hidden", !isAdminRole(state.me.role));
+  renderTabs(); renderBody();
 })();
