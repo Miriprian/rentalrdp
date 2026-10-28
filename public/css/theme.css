@@ -4,48 +4,53 @@ html { scroll-behavior: smooth; }
 
 :root {
   --font-sans: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Fraunces", "Times New Roman", Georgia, serif;
   --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --c-bg: #0a0a0b;
-  --c-card: #141416;
-  --c-ui: #1f1f23;
-  --c-ui-hover: #2a2a2f;
-  --c-muted-bg: #3a3a40;
-  --c-border: #232327;
-  --c-border-2: #323238;
-  --c-text: #f5f5f7;
-  --c-text-sub: #b8b8bf;
-  --c-text-muted: #8a8a93;
-  --c-text-faint: #6b6b75;
-  --c-accent: #34d399;
-  --c-accent-hover: #6ee7b7;
-  --c-accent-soft: rgba(52, 211, 153, 0.12);
-  --c-red: #f87171;
-  --c-amber: #fbbf24;
+  --c-bg: #121110;
+  --c-card: #1c1a18;
+  --c-ui: #262320;
+  --c-ui-hover: #322e2a;
+  --c-muted-bg: #403b36;
+  --c-border: #2a2724;
+  --c-border-2: #3a3632;
+  --c-text: #f2efe9;
+  --c-text-sub: #c9c3b8;
+  --c-text-muted: #9a9388;
+  --c-text-faint: #6e685f;
+  --c-accent: #d4a574;
+  --c-accent-hover: #e2b98a;
+  --c-accent-soft: rgba(212, 165, 116, 0.14);
+  --c-green: #6fa87a;
+  --c-green-soft: rgba(111, 168, 122, 0.14);
+  --c-red: #e07a6e;
+  --c-amber: #e0b36e;
   --c-card-tint: transparent;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
-  --c-bg: #fafafa;
+  --c-bg: #f6f3ee;
   --c-card: #ffffff;
-  --c-ui: #f4f4f5;
-  --c-ui-hover: #e4e4e7;
-  --c-muted-bg: #d4d4d8;
-  --c-border: #e4e4e7;
-  --c-border-2: #d4d4d8;
-  --c-text: #18181b;
-  --c-text-sub: #3f3f46;
-  --c-text-muted: #71717a;
-  --c-text-faint: #a1a1aa;
-  --c-accent: #059669;
-  --c-accent-hover: #047857;
-  --c-accent-soft: rgba(5, 150, 105, 0.08);
-  --c-red: #dc2626;
-  --c-amber: #b45309;
+  --c-ui: #efeae2;
+  --c-ui-hover: #e5dfd5;
+  --c-muted-bg: #d8d0c4;
+  --c-border: #e7e1d8;
+  --c-border-2: #d8d0c4;
+  --c-text: #1f1a16;
+  --c-text-sub: #4a423a;
+  --c-text-muted: #7a7268;
+  --c-text-faint: #a8a096;
+  --c-accent: #9a6b3f;
+  --c-accent-hover: #7d5530;
+  --c-accent-soft: rgba(154, 107, 63, 0.10);
+  --c-green: #5a8a63;
+  --c-green-soft: rgba(90, 138, 99, 0.10);
+  --c-red: #a64b3f;
+  --c-amber: #9a7a3f;
   --c-card-tint: transparent;
 }
 
@@ -84,6 +89,7 @@ html[data-theme] body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+h1, h2, h3, .display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; }
 html[data-theme] ::selection { background: var(--c-accent-soft); }
 
 /* Tombol */
@@ -125,7 +131,7 @@ select.input { cursor: pointer; }
   font-size: .6875rem; font-weight: 600; padding: .18rem .5rem;
   border-radius: .375rem; white-space: nowrap; line-height: 1.2; letter-spacing: .01em;
 }
-.chip-emerald { background: var(--c-accent-soft); color: var(--c-accent); border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent); }
+.chip-emerald { background: var(--c-green-soft); color: var(--c-green); border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent); }
 .chip-red { background: color-mix(in srgb, var(--c-red) 12%, transparent); color: var(--c-red); border: 1px solid color-mix(in srgb, var(--c-red) 30%, transparent); }
 .chip-amber { background: color-mix(in srgb, var(--c-amber) 12%, transparent); color: var(--c-amber); border: 1px solid color-mix(in srgb, var(--c-amber) 30%, transparent); }
 .chip-slate { background: var(--c-ui); color: var(--c-text-muted); border: 1px solid var(--c-border); }
@@ -167,7 +173,7 @@ select.input { cursor: pointer; }
 
 /* Indikator online agent */
 .dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 9999px; vertical-align: middle; }
-.dot-on { background: var(--c-accent); }
+.dot-on { background: var(--c-green); }
 .dot-off { background: var(--c-muted-bg); }
 
 /* Hero (tanpa glow berlebih) */
