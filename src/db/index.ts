@@ -197,7 +197,6 @@ CREATE INDEX IF NOT EXISTS idx_rentals_pc ON rentals(pc_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_pc_status ON agent_tasks(pc_id, status);
 CREATE INDEX IF NOT EXISTS idx_pcs_status ON pcs(status);
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS ip_local TEXT NOT NULL DEFAULT '';
-ALTER TABLE rent_accounts ADD COLUMN IF NOT EXISTS task_id TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS rent_accounts (
   id TEXT PRIMARY KEY,
   task_id TEXT NOT NULL DEFAULT '',
@@ -209,6 +208,7 @@ CREATE TABLE IF NOT EXISTS rent_accounts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ
 );
+ALTER TABLE rent_accounts ADD COLUMN IF NOT EXISTS task_id TEXT NOT NULL DEFAULT '';
 -- Migrasi kolom detail hardware untuk DB yang sudah terlanjur dibuat
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS motherboard TEXT NOT NULL DEFAULT '';
 ALTER TABLE pcs ADD COLUMN IF NOT EXISTS hw_json TEXT NOT NULL DEFAULT '{}';
