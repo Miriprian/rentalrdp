@@ -80,7 +80,7 @@ function specHtml(p) {
   let hw = {};
   try { hw = JSON.parse(p.hw_json || "{}"); } catch {}
   const rows = [];
-  // Urutan: Motherboard → CPU → GPU → RAM → Storage → OS → Lokasi → Internet.
+  // Urutan: Motherboard  CPU  GPU  RAM  Storage  OS  Lokasi  Internet.
   if (p.motherboard) rows.push([t("spec_mb"), esc(p.motherboard) + (hw.ramType ? ` (${esc(hw.ramType)})` : "")]);
   if (p.cpu) {
     rows.push([t("spec_cpu"), esc(p.cpu) + (hw.cpuMaxGhz ? ` @ ${hw.cpuMaxGhz}GHz` : "")]);

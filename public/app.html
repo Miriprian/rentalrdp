@@ -8,7 +8,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"/>
 <style>
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
@@ -16,13 +16,13 @@
 <body class="min-h-screen">
 <header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <a href="/" class="text-2xl select-none" title="Beranda">🖥️</a>
+    <a href="/" class="font-semibold text-lg tracking-tight">Rental PC</a>
     <div>
       <div class="font-extrabold text-lg leading-none">Rental PC<span class="text-emerald-400"> by Miriprian</span></div>
       <div data-i18n="tagline_user" class="text-[11px] text-slate-400">Dashboard Penyewa</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="/" data-i18n="nav_kembali_katalog" class="btn btn-ghost btn-sm">← Katalog</a>
+      <a href="/" data-i18n="nav_kembali_katalog" class="btn btn-ghost btn-sm"> Katalog</a>
       <a id="btnAdminLink" href="/admin" data-i18n="nav_admin" class="hidden btn btn-amber btn-sm">Admin</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
       <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
@@ -35,7 +35,7 @@
     <h1 class="text-2xl font-extrabold">Dashboard Saya</h1>
     <div id="dashRole" class="text-xs text-slate-400 mb-1"></div>
   </div>
-  <div id="adminHint" class="hidden text-xs mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">Kamu login sebagai admin — kelola sistem di <a href="/admin" class="underline font-bold">/admin →</a></div>
+  <div id="adminHint" class="hidden text-xs mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">Kamu login sebagai admin — kelola sistem di <a href="/admin" class="underline font-bold">/admin </a></div>
   <div class="tabs mb-5" id="dashTabs"></div>
   <div id="dashBody"></div>
 </main>
@@ -45,13 +45,13 @@
     <span data-i18n="footer_copy">© 2026 Rental PC by Miriprian — Bare metal rental.</span>
     <span class="ml-auto"><a class="underline hover:text-emerald-300" href="/" data-i18n="nav_beranda">Beranda</a> • <a class="underline hover:text-emerald-300" href="/admin" data-i18n="nav_admin">Admin</a></span>
     <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
-      <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
-      <option value="en" data-i18n="ln_en">🇬🇧 English</option>
+      <option value="id" data-i18n="ln_id"> Bahasa Indonesia</option>
+      <option value="en" data-i18n="ln_en"> English</option>
     </select>
     <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
-      <option value="system" data-i18n="ln_system">🖥️ System</option>
-      <option value="light" data-i18n="ln_light">☀️ Light</option>
-      <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
+      <option value="system" data-i18n="ln_system"> System</option>
+      <option value="light" data-i18n="ln_light"> Light</option>
+      <option value="dark" data-i18n="ln_dark"> Dark</option>
     </select>
   </div>
 </footer>

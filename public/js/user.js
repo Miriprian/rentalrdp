@@ -38,7 +38,7 @@ async function renderBody() {
 
 function copyBtn(text, label) {
   const safe = JSON.stringify(text).replaceAll('"', "&quot;");
-  return `<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(${safe}).then(()=>toast('${t("copied")}'))">${label} ⧉</button>`;
+  return `<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText(${safe}).then(()=>toast('${t("copied")}'))">${label} </button>`;
 }
 
 async function myOrdersHtml() {
@@ -53,10 +53,10 @@ async function myOrdersHtml() {
         <span class="ml-auto font-extrabold text-lg text-emerald-300">${rupiah(o.total_idr)}</span>
       </div>
       <div class="text-slate-300 mt-2 text-xs grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
-        <div>🖥️ ${esc(o.pc_name)} <span class="mono">${esc(o.pc_code)}</span></div>
-        <div>📦 ${esc(o.plan_name)} • ${o.duration_hours} ${t("hours")}</div>
-        <div>💳 ${t("via")} ${esc(o.payment_method)}</div>
-        <div>📅 ${o.created_at ? new Date(o.created_at).toLocaleString("id-ID") : ""}</div>
+        <div> ${esc(o.pc_name)} <span class="mono">${esc(o.pc_code)}</span></div>
+        <div> ${esc(o.plan_name)} • ${o.duration_hours} ${t("hours")}</div>
+        <div> ${t("via")} ${esc(o.payment_method)}</div>
+        <div> ${o.created_at ? new Date(o.created_at).toLocaleString("id-ID") : ""}</div>
       </div>
       ${o.payment_proof ? `<div class="text-xs text-slate-400 mt-1.5">${t("proof_label")} <span class="mono text-emerald-300">${esc(o.payment_proof)}</span></div>` : ""}
       ${["pending", "waiting_verification"].includes(o.status) ? `
@@ -83,7 +83,7 @@ async function myRentalsHtml() {
       <div class="flex flex-wrap gap-2 items-center">
         <b class="text-lg">${esc(x.pc_name)} <span class="mono text-xs text-slate-400">${esc(x.pc_code)}</span></b>
         ${rentalStatusChip(x.status)}
-        <span class="ml-auto text-xs text-amber-300 font-semibold">⏳ ${dl(x.end_at)}</span>
+        <span class="ml-auto text-xs text-amber-300 font-semibold"> ${dl(x.end_at)}</span>
       </div>
       <div class="grid sm:grid-cols-3 gap-2 mt-4 mono text-xs">
         <div class="bg-slate-800 rounded-xl p-3">${t("host")}<br/><b class="text-emerald-300 break-all">${esc(x.rdp_host)}:${x.rdp_port}</b><div class="mt-1">${copyBtn(x.rdp_host, t("copy"))}</div></div>
@@ -95,7 +95,7 @@ async function myRentalsHtml() {
         <span>${t("end")} <b class="text-amber-300">${new Date(x.end_at).toLocaleString("id-ID")}</b></span>
         <span>${t("order")} <span class="mono">${esc(x.order_code)}</span></span>
       </div>
-      <div class="text-xs mt-3 bg-slate-800 rounded-xl p-3 flex gap-2">📲 <b>${t("guide_label")}</b><span>${t("guide_text")}</span></div>
+      <div class="text-xs mt-3 bg-slate-800 rounded-xl p-3 flex gap-2"> <b>${t("guide_label")}</b><span>${t("guide_text")}</span></div>
       ${x.status === "active" ? `<div class="flex flex-wrap gap-2 mt-4">
         <button onclick="extendRental('${x.id}',24)" class="btn btn-ghost btn-sm">+${t("ext_day")}</button>
         <button onclick="extendRental('${x.id}',168)" class="btn btn-ghost btn-sm">+${t("ext_week")}</button>

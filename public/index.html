@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title data-i18n="doc_title">Rental PC by Miriprian — Sewa PC Bare Metal (Perangkat Fisik)</title>
+<title data-i18n="doc_title">Rental PC by Miriprian - Sewa PC Bare Metal</title>
 <meta name="description" content="Sewa PC fisik bare metal secara online dari Rental PC by Miriprian. Bukan VPS atau virtualisasi Proxmox. Akses RDP penuh + IP publik."/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"/>
 <style>
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
   dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
@@ -18,10 +18,9 @@
 <!-- NAV -->
 <header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="text-2xl select-none">🖥️</div>
-    <div>
-      <div class="font-extrabold text-lg leading-none">Rental PC<span class="text-emerald-400"> by Miriprian</span></div>
-      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare Metal • Perangkat Fisik • <span class="text-red-300">Bukan Virtual / Bukan Proxmox</span></div>
+        <div>
+      <div class="font-semibold text-lg leading-none tracking-tight">Rental PC <span class="text-emerald-400">by Miriprian</span></div>
+      <div data-i18n-html="tagline" class="text-[11px] text-slate-400">Bare metal physical computers</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
       <a href="#katalog" data-i18n="nav_katalog" class="px-3 py-2 rounded-lg hover:text-emerald-300 transition-colors hidden sm:inline">Katalog</a>
@@ -62,7 +61,7 @@
       <h2 data-i18n="katalog_title" class="text-2xl font-extrabold">Katalog Unit Fisik</h2>
       <span data-i18n="katalog_sub" class="text-xs text-slate-400">status terkini dari server</span>
     </div>
-    <span class="ml-auto"><button id="btnRefresh" data-i18n="btn_refresh" class="btn btn-ghost btn-sm">↻ Muat Ulang</button></span>
+    <span class="ml-auto"><button id="btnRefresh" data-i18n="btn_refresh" class="btn btn-ghost btn-sm"> Muat Ulang</button></span>
   </div>
   <div id="pcGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
 </section>
@@ -111,13 +110,13 @@
       API: <a class="underline hover:text-emerald-300" href="/api/health">/api/health</a>
     </span>
     <select id="langSel" class="input !w-auto !py-1.5 text-xs" title="Language / Bahasa">
-      <option value="id" data-i18n="ln_id">🇮🇩 Bahasa Indonesia</option>
-      <option value="en" data-i18n="ln_en">🇬🇧 English</option>
+      <option value="id" data-i18n="ln_id"> Bahasa Indonesia</option>
+      <option value="en" data-i18n="ln_en"> English</option>
     </select>
     <select id="themeSel" class="input !w-auto !py-1.5 text-xs" title="Mode tampilan">
-      <option value="system" data-i18n="ln_system">🖥️ System</option>
-      <option value="light" data-i18n="ln_light">☀️ Light</option>
-      <option value="dark" data-i18n="ln_dark">🌙 Dark</option>
+      <option value="system" data-i18n="ln_system"> System</option>
+      <option value="light" data-i18n="ln_light"> Light</option>
+      <option value="dark" data-i18n="ln_dark"> Dark</option>
     </select>
   </div>
 </footer>
@@ -125,7 +124,7 @@
 <!-- AUTH MODAL -->
 <dialog id="authModal" class="rounded-2xl p-0 w-[min(440px,95vw)] shadow-2xl">
   <div class="p-6">
-    <div class="flex items-center mb-5"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('authModal').close()">✕</button></div>
+    <div class="flex items-center mb-5"><h3 data-i18n="auth_title" id="authTitle" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('authModal').close()"></button></div>
     <div class="grid grid-cols-2 gap-2 mb-5 text-sm">
       <button id="tabLogin" data-i18n="tab_login" class="btn btn-primary btn-sm">Login</button>
       <button id="tabReg" data-i18n="tab_reg" class="btn btn-ghost btn-sm">Daftar</button>
@@ -150,7 +149,7 @@
 <!-- ORDER MODAL -->
 <dialog id="orderModal" class="rounded-2xl p-0 w-[min(520px,95vw)] shadow-2xl">
   <div class="p-6">
-    <div class="flex items-center mb-3"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('orderModal').close()">✕</button></div>
+    <div class="flex items-center mb-3"><h3 data-i18n="order_title" class="font-extrabold text-lg"></h3><button class="ml-auto text-slate-400 hover:text-slate-200 transition-colors text-xl leading-none p-1" onclick="document.getElementById('orderModal').close()"></button></div>
     <div id="orderPC" class="card rounded-xl p-3 text-sm text-slate-300 mb-4"></div>
     <label data-i18n="ph_plan" class="text-xs text-slate-400"></label>
     <select id="orderPlan" class="input mt-1 mb-3"></select>

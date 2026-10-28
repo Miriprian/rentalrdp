@@ -1,7 +1,7 @@
 /* Rental PC by Miriprian — panel admin (/admin): order, PC, rental, user, voucher, settings, audit */
 let tab = "orders";
 
-/* ── status chip (tanpa emoji, palet minimal) ─────────────────────────── */
+/*  status chip (tanpa emoji, palet minimal)  */
 const adminOrderStatusChip = (s) => {
   const m = {
     pending: ["amber", t("order_pending")],
@@ -24,7 +24,7 @@ const adminRentalStatusChip = (s) => {
 const lab = (s) => `<span class="lab">${esc(s)}</span>`;
 const pulseChip = (text, variant) => chip(text, variant).replace('class="chip', 'class="chip pulse');
 
-/* ── mesin live (auto-refresh per tab, tanpa refresh manual) ───────────── */
+/*  mesin live (auto-refresh per tab, tanpa refresh manual)  */
 const LIVE = { orders: 5000, pcs: 10000, rentals: 5000, rentacc: 2000 };
 const live = { running: true, timer: null, keys: {} };
 const sig = (v) => JSON.stringify(v);
@@ -70,7 +70,7 @@ async function liveTick() {
   schedule();
 }
 
-/* ── navigasi ─────────────────────────────────────────────────────────── */
+/*  navigasi  */
 function renderTabs() {
   const tabs = [["orders", t("tab_incoming")], ["pcs", t("tab_pcs")], ["rentals", t("tab_active_rentals")], ["rentacc", t("tab_rent_acc")], ["users", t("tab_users")], ["vouchers", t("tab_vouchers")], ["settings", t("tab_settings")], ["audit", t("tab_audit")], ["akun", t("tab_akun")]];
   if (!tabs.find((t) => t[0] === tab)) tab = "orders";
@@ -99,7 +99,7 @@ async function renderBody() {
   } catch (e) { b.innerHTML = `<div class="text-red-300 text-sm">${t("load_fail")}${esc(e.message)}</div>`; }
 }
 
-/* ── tab ORDERS ───────────────────────────────────────────────────────── */
+/*  tab ORDERS  */
 function statCardsHtml(st) {
   const stats = [
     ["Users", st.users ?? 0],
@@ -155,7 +155,7 @@ async function liveOrders() {
   }
 }
 
-/* ── tab PCS (telemetri agent live, input dibiarkan utuh) ─────────────── */
+/*  tab PCS (telemetri agent live, input dibiarkan utuh)  */
 // Strip telemetri agent (live): status online + last seen + kecepatan internet + tamper.
 function agentLiveHtml(p) {
   const on = agentOnline(p);
@@ -361,7 +361,7 @@ window.restartPc = async function (id) {
   toast(r.message || "OK"); renderBody();
 };
 
-/* ── tab RENTALS ──────────────────────────────────────────────────────── */
+/*  tab RENTALS  */
 function rentalsListHtml(rows) {
   const inner = rows.length ? rows.map((x) => `
     <div class="card card-hover rounded-2xl p-5 text-sm">
@@ -397,7 +397,7 @@ window.terminateRental = async function (id) {
   toast(r.message || "OK"); renderBody();
 };
 
-/* ── tab AKUN RDP (live proses pembuatan akun) ───────────────────────── */
+/*  tab AKUN RDP (live proses pembuatan akun)  */
 function taskBadge(status, result, pcStatus) {
   if (status === "done") return `<span class="inline-flex items-center gap-1.5">${chip(t("task_done"), "emerald")}</span>`;
   if (status === "failed") {
@@ -434,7 +434,7 @@ function rentAccListHtml(rows) {
         <span class="text-slate-500">${t("pass")}:</span><span class="text-emerald-300">${esc(a.password)}</span>
       </div>
       <div class="text-xs mt-2.5">${taskBadge(a.task_status, a.task_result, a.pc_status)}</div>
-      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="btn btn-ghost btn-sm mt-3">${t("copy_all")} ⧉</button>`;
+      <button onclick='copyAcc(${JSON.stringify(a.username)},${JSON.stringify(a.password || "")},${JSON.stringify((a.pc_ip_local || "-") + ":" + (a.pc_rdp_port || 3389))},${JSON.stringify((a.pc_ip_public || "-") + ":" + (a.pc_rdp_port || 3389))})' class="btn btn-ghost btn-sm mt-3">${t("copy_all")} </button>`;
     } else {
       html += `<div class="text-sm text-slate-500">${t("rent_acc_empty")}</div>`;
     }
@@ -480,7 +480,7 @@ window.copyAcc = function (u, p, local, pub) {
   navigator.clipboard?.writeText(txt).then(() => toast(t("token_copied"))).catch(() => prompt(t("token_manual"), txt));
 };
 
-/* ── tab ORDERS: aksi approve/reject ──────────────────────────────────── */
+/*  tab ORDERS: aksi approve/reject  */
 window.approveOrder = async function (id) {
   if (!confirm(t("confirm_approve"))) return;
   const r = await api(`/api/admin/orders/${id}/approve`, { method: "POST" });
@@ -494,7 +494,7 @@ window.rejectOrder = async function (id) {
   toast(r.message || "OK"); renderBody();
 };
 
-/* ── tab USERS / VOUCHERS / SETTINGS / AUDIT ──────────────────────────── */
+/*  tab USERS / VOUCHERS / SETTINGS / AUDIT  */
 async function adminUsersHtml() {
   const r = await api("/api/admin/users");
   const rows = r.data || [];
@@ -560,7 +560,7 @@ async function adminAuditHtml() {
   return `<div class="grid gap-1 text-xs mono">` + rows.slice(0, 100).map((a) => `<div class="card rounded-lg p-2 flex flex-wrap gap-x-2"><span class="text-slate-400">${new Date(a.created_at).toLocaleString("id-ID")}</span>• <b>${esc(a.actor_name)}</b> • ${esc(a.action)} • <span class="text-slate-400">${esc(a.entity)}/${esc(a.entity_id)}</span></div>`).join("") + `</div>`;
 }
 
-/* ── init ─────────────────────────────────────────────────────────────── */
+/*  init  */
 (async () => {
   await loadMe();
   navInit("admin");

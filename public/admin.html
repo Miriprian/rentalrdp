@@ -9,7 +9,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="/css/theme.css"/>
 <script>try{var t=localStorage.getItem("theme")||"system";var r=t==="dark"?"dark":t==="light"?"light":(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",r)}catch(e){}</script>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"/>
 <style>
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
@@ -17,13 +17,13 @@
 <body class="min-h-screen">
 <header class="sticky top-0 z-40 bg-slate-950/85 backdrop-blur border-b border-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-    <a href="/" class="text-2xl select-none" title="Beranda">🛠️</a>
+    <a href="/" class="font-semibold text-lg tracking-tight">Rental PC</a>
     <div>
       <div class="font-extrabold text-lg leading-none"><span data-i18n="admin_panel">Admin Panel</span> <span class="text-slate-400 text-xs font-bold border border-slate-700 rounded-full px-2 py-0.5">/admin</span></div>
       <div data-i18n="tagline_admin" class="text-[11px] text-slate-400">Rental PC by Miriprian — khusus admin & superadmin</div>
     </div>
     <nav class="ml-auto flex items-center gap-2 text-sm">
-      <a href="/" data-i18n="nav_beranda" class="btn btn-ghost btn-sm">← Beranda</a>
+      <a href="/" data-i18n="nav_beranda" class="btn btn-ghost btn-sm"> Beranda</a>
       <a href="/app" data-i18n="dash_user" class="btn btn-ghost btn-sm">Dashboard User</a>
       <span id="navUser" class="hidden md:inline text-slate-300 text-xs"></span>
       <button id="btnLogout" data-i18n="nav_keluar" class="hidden btn btn-ghost btn-sm">Keluar</button>
