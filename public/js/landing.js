@@ -22,29 +22,30 @@ async function loadPublic() {
 
 function renderPcs() {
   const g = $("#pcGrid");
-  if (!landing.pcs.length) { g.innerHTML = `<div class="card rounded-xl p-6 text-sm text-slate-400">${t("empty_units")}</div>`; return; }
+  if (!landing.pcs.length) { g.innerHTML = `<div class="card rounded-lg p-8 text-sm text-slate-400">${t("empty_units")}</div>`; return; }
   g.innerHTML = landing.pcs.map((p) => `
-    <div class="card card-hover rounded-2xl p-5 flex flex-col overflow-hidden">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="chip chip-outline mono">${esc(p.code)}</span>
-        <span class="ml-auto">${statusBadge(p.status)}</span>
-      </div>
-      <div class="font-extrabold text-lg leading-snug">${esc(p.name)}</div>
-      <div class="text-[11px] mt-1 text-emerald-300 font-bold tracking-wide">BARE METAL</div>
+    <article class="card rounded-lg p-6 flex flex-col gap-4">
+      <header class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold leading-tight">${esc(p.name)}</h3>
+          <p class="text-xs text-slate-400 mt-1 mono">${esc(p.code)}</p>
+        </div>
+        ${statusBadge(p.status)}
+      </header>
       ${specHtml(p)}
-      <p class="text-xs text-slate-400 mt-2 line-clamp-2">${esc(p.description || "")}</p>
-      <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
-        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_hour")}<br/><b class="text-emerald-300">${rupiah(p.price_hourly)}</b></div>
-        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_day")}<br/><b class="text-emerald-300">${rupiah(p.price_daily)}</b></div>
-        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_week")}<br/><b class="text-emerald-300">${rupiah(p.price_weekly)}</b></div>
-        <div class="bg-slate-800 rounded-xl p-2.5">${t("lbl_month")}<br/><b class="text-emerald-300">${rupiah(p.price_monthly)}</b></div>
-      </div>
+      ${p.description ? `<p class="text-sm text-slate-500 leading-relaxed">${esc(p.description)}</p>` : ""}
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm border-t border-slate-800 pt-4">
+        <div class="flex justify-between"><dt class="text-slate-500">${t("lbl_hour")}</dt><dd class="font-medium">${rupiah(p.price_hourly)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">${t("lbl_day")}</dt><dd class="font-medium">${rupiah(p.price_daily)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">${t("lbl_week")}</dt><dd class="font-medium">${rupiah(p.price_weekly)}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">${t("lbl_month")}</dt><dd class="font-medium">${rupiah(p.price_monthly)}</dd></div>
+      </dl>
       <button ${p.status !== "available" ? "disabled" : ""} onclick="openOrder('${p.id}')"
-        class="btn btn-block mt-4 ${p.status === "available" ? "btn-primary" : "btn-ghost !text-slate-500"}">
+        class="btn btn-block ${p.status === "available" ? "btn-primary" : "btn-ghost"}">
         ${p.status === "available" ? t("btn_rent_now") : t("btn_unavailable")}
       </button>
-      ${p.status === "offline" || p.status === "maintenance" ? `<div class="mt-2 text-[11px] text-red-300 font-semibold flex items-center gap-1"><span class="dot dot-off"></span>${t("pc_unavailable_note")}</div>` : ""}
-    </div>`).join("");
+      ${p.status === "offline" || p.status === "maintenance" ? `<p class="text-xs text-red-300">${t("pc_unavailable_note")}</p>` : ""}
+    </article>`).join("");
 }
 
 function renderPlanOptions() {
